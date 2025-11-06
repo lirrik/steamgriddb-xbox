@@ -5,17 +5,18 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
-  IgnorableNamespaces="uap uap3 mp">
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 mp rescap">
 
   <Identity
-    Name="8a54c81a-eb28-4055-87b7-8c1d07114f7c"
+    Name="KD.SteamGridDB.Xbox"
     Publisher="CN=kirba"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="8a54c81a-eb28-4055-87b7-8c1d07114f7c" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>SteamGridDB</DisplayName>
+    <DisplayName>SteamGridDB for Xbox</DisplayName>
     <PublisherDisplayName>Kyrylo Derevianko</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -33,7 +34,7 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="SteamGridDB.Xbox.App">
       <uap:VisualElements
-        DisplayName="SteamGridDB"
+        DisplayName="SteamGridDB for Xbox"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
         Description="SteamGridDB for Xbox Full Screen Experience (XFSE)"
@@ -59,8 +60,6 @@
                     <Width>400</Width>
                     <MinHeight>150</MinHeight>
                     <MinWidth>200</MinWidth>
-                    <MaxHeight>350</MaxHeight>
-                    <MaxWidth>450</MaxWidth>
                   </Size>
                   <ResizeSupported>
                     <Horizontal>true</Horizontal>
@@ -115,6 +114,7 @@
   </Extensions>
 
   <Capabilities>
+    <rescap:Capability Name="broadFileSystemAccess" />
     <Capability Name="internetClient" />
   </Capabilities>
 </Package>

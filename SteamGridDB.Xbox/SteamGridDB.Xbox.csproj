@@ -102,9 +102,12 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Converters\InverseBooleanToVisibilityConverter.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Models\GameEntry.cs" />
+    <Compile Include="Models\GamePlatform.cs" />
     <Compile Include="PrimaryWidget.xaml.cs">
       <DependentUpon>PrimaryWidget.xaml</DependentUpon>
     </Compile>
