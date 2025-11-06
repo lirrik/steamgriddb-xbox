@@ -112,6 +112,11 @@
       <DependentUpon>PrimaryWidget.xaml</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\SteamGridDB\Models\SteamGridDbGrid.cs" />
+    <Compile Include="Services\SteamGridDB\Models\SteamGridDbResponse.cs" />
+    <Compile Include="Services\SteamGridDB\Models\SteamGridDbAuthor.cs" />
+    <Compile Include="Services\SteamGridDB\Models\SteamGridDbGame.cs" />
+    <Compile Include="Services\SteamGridDB\SteamGridDbClient.cs" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">

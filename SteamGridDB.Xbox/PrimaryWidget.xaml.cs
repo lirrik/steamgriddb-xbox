@@ -192,7 +192,7 @@ namespace SteamGridDB.Xbox
                                 {
                                     GameEntries.Add(new GameEntry
                                     {
-                                        Id = entryId,
+                                        PlatformId = entryId.Substring(entryId.IndexOf(':') + 1),
                                         ImageName = entryTitle,
                                         Platform = GamePlatformHelper.FromXboxDirectory(directoryName),
                                         AddedDate = DateTimeOffset.FromUnixTimeMilliseconds((long)timestamp).LocalDateTime,

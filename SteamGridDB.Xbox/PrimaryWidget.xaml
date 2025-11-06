@@ -102,7 +102,7 @@
                                         FontSize="14"
                                         TextWrapping="NoWrap"
                                         TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind Id, Mode=OneWay}" 
+                                    <TextBlock Text="{x:Bind PlatformId, Mode=OneWay}" 
                                         FontSize="11" 
                                         Opacity="0.7"
                                         TextWrapping="NoWrap"

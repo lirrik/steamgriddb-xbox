@@ -16,7 +16,7 @@ namespace SteamGridDB.Xbox.Models
         private string imageName;
         private BitmapImage image;
 
-        public string Id
+        public string PlatformId
         {
             get => id;
             set
