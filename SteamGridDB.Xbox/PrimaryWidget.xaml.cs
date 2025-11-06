@@ -167,7 +167,15 @@ namespace SteamGridDB.Xbox
 
                                 // Get the ID from the "id" property (not from the key)
                                 string entryId = entryObject.GetNamedString("id");
-                                double timestamp = entryObject.GetNamedNumber("addedDate", 0);
+      
+                                // Parse addedDate - it's stored as a string in JSON
+                                string addedDateString = entryObject.GetNamedString("addedDate", "0");
+                                long timestamp = 0;
+
+                                if (!string.IsNullOrEmpty(addedDateString) && long.TryParse(addedDateString, out long parsedTimestamp))
+                                {
+                                    timestamp = parsedTimestamp;
+                                }
 
                                 // Convert ID to image filename (replace : with _)
                                 string imageFileName = entryId.Replace(":", "_") + ".png";
@@ -195,7 +203,7 @@ namespace SteamGridDB.Xbox
                                         PlatformId = entryId.Substring(entryId.IndexOf(':') + 1),
                                         ImageName = entryTitle,
                                         Platform = GamePlatformHelper.FromXboxDirectory(directoryName),
-                                        AddedDate = DateTimeOffset.FromUnixTimeMilliseconds((long)timestamp).LocalDateTime,
+                                        AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
                                         Directory = directoryName,
                                         Image = image
                                     });

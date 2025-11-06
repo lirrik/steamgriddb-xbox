@@ -63,9 +63,12 @@ namespace SteamGridDB.Xbox.Models
                 {
                     addedDate = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(AddedDateFormatted));
                 }
             }
         }
+
+        public string AddedDateFormatted => AddedDate.ToString("MM/dd/yyyy HH:mm:ss");
 
         public string ImageName
         {

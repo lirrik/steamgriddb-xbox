@@ -18,7 +18,7 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Padding="10" Background="{ThemeResource SystemControlBackgroundAccentBrush}">
-            <TextBlock Text="SteamGridDB - Game Library" 
+            <TextBlock Text="Xbox Installed Games Library" 
                 FontSize="16" 
                 FontWeight="Bold" 
                 Foreground="White"/>
@@ -102,16 +102,29 @@
                                         FontSize="14"
                                         TextWrapping="NoWrap"
                                         TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind PlatformId, Mode=OneWay}" 
-                                        FontSize="11" 
-                                        Opacity="0.7"
-                                        TextWrapping="NoWrap"
-                                        TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind Directory, Mode=OneWay}" 
-                                        FontSize="10" 
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="{x:Bind Platform, Mode=OneWay}" 
+                                            FontSize="11" 
+                                            Opacity="0.7"
+                                            TextWrapping="NoWrap"
+                                            TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text=" • " 
+                                            FontSize="11" 
+                                            Opacity="0.7"
+                                            Margin="4,0"/>
+                                        <TextBlock Text="{x:Bind PlatformId, Mode=OneWay}"
+                                            FontSize="11" 
+                                            Opacity="0.7"
+                                            TextWrapping="NoWrap"
+                                            TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <TextBlock FontSize="10" 
                                         Opacity="0.5"
                                         TextWrapping="NoWrap"
-                                        TextTrimming="CharacterEllipsis"/>
+                                        TextTrimming="CharacterEllipsis">
+                                        <Run Text="Added: "/>
+                                        <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}"/>
+                                    </TextBlock>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
