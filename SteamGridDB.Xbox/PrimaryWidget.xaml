@@ -104,17 +104,9 @@
                     <TextBlock
                         HorizontalAlignment="Center"
                         Foreground="#99FFFFFF"
-                        Text="Grant file system permission to view your library"
+                        Text="Please grant file system access to SteamGridDB for Xbox to view your Xbox app library (Settings &gt; Privacy &amp; security &gt; File system &gt; Let apps access your file system)"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
-                    <Button
-                        Margin="0,12,0,0"
-                        Padding="16,8"
-                        HorizontalAlignment="Center"
-                        Background="#107C10"
-                        Content="Open Settings"
-                        CornerRadius="4"
-                        Foreground="White" />
                 </StackPanel>
 
                 <!--  Game entries ListView - Fluent Style  -->
