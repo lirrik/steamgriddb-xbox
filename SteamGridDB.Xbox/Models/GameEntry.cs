@@ -9,7 +9,8 @@ namespace SteamGridDB.Xbox.Models
 {
     public class GameEntry : INotifyPropertyChanged
     {
-        private string id;
+        private string name;
+        private string platformId;
         private string directory;
         private GamePlatform platform;
         private DateTime addedDate;
@@ -17,14 +18,27 @@ namespace SteamGridDB.Xbox.Models
         private BitmapImage image;
         private bool hasBackup;
 
-        public string PlatformId
+        public string Name
         {
-            get => id;
+            get => name;
             set
             {
-                if (id != value)
+                if (name != value)
                 {
-                    id = value;
+                    name = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string PlatformId
+        {
+            get => platformId;
+            set
+            {
+                if (platformId != value)
+                {
+                    platformId = value;
                     OnPropertyChanged();
                 }
             }

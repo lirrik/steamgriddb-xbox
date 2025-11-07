@@ -30,7 +30,21 @@ namespace SteamGridDB.Xbox
 
         private GameEntry currentSelectedGame;
         private StorageFolder currentGameFolder;
-        private string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+        private readonly string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+
+        private string gridPanelHeaderText = "Select artwork";
+        public string GridPanelHeaderText
+        {
+            get => gridPanelHeaderText;
+            set
+            {
+                if (gridPanelHeaderText != value)
+                {
+                    gridPanelHeaderText = value;
+                    Bindings.Update();
+                }
+            }
+        }
 
         public PrimaryWidget()
         {
@@ -190,7 +204,7 @@ namespace SteamGridDB.Xbox
                                 // Convert ID to image filename (replace : with _)
                                 string imageFileName = entryId.Replace(":", "_") + ".png";
                                 string backupFileName = entryId.Replace(":", "_") + ".bak";
-                                string entryTitle = imageFileName;
+                                string imageName = imageFileName;
 
                                 BitmapImage image = null;
                                 bool hasBackup = false;
@@ -216,16 +230,49 @@ namespace SteamGridDB.Xbox
                                 catch (FileNotFoundException)
                                 {
                                     // Image doesn't exist, that's okay
-                                    entryTitle = null;
+                                    imageName = "Not found";
                                 }
+
+                                // Try to fetch game name from SteamGridDB API
+                                string gameName = "Unknown";
+                                string platformId = entryId.Substring(entryId.IndexOf(':') + 1);
+                                GamePlatform platform = GamePlatformHelper.FromXboxDirectory(directoryName);
+
+                                if (!string.IsNullOrEmpty(steamGridDbApiKey))
+                                {
+                                    try
+                                    {
+                                        string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(platform);
+
+                                        if (!string.IsNullOrEmpty(platformString))
+                                        {
+                                            using (var client = new SteamGridDbClient(steamGridDbApiKey))
+                                            {
+                                                var gameInfo = await client.GetGameByPlatformIdAsync(platformString, platformId);
+
+                                                if (gameInfo != null && !string.IsNullOrEmpty(gameInfo.Name))
+                                                {
+                                                    gameName = gameInfo.Name;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        // Log but don't fail - game name is optional
+                                        System.Diagnostics.Debug.WriteLine($"Could not fetch game name for {entryId}: {ex.Message}");
+                                    }
+                                }
+
 
                                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                                 {
                                     GameEntries.Add(new GameEntry
                                     {
-                                        PlatformId = entryId.Substring(entryId.IndexOf(':') + 1),
-                                        ImageFileName = entryTitle,
-                                        Platform = GamePlatformHelper.FromXboxDirectory(directoryName),
+                                        Name = gameName,
+                                        PlatformId = platformId,
+                                        ImageFileName = imageName,
+                                        Platform = platform,
                                         AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
                                         Directory = directoryName,
                                         Image = image,
@@ -249,7 +296,7 @@ namespace SteamGridDB.Xbox
 
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
-                    StatusText.Text = $"Loaded {GameEntries.Count} game entries.";
+                    StatusText.Text = $"Loaded {GameEntries.Count} game entries";
                 });
             }
             catch (Exception ex)
@@ -289,6 +336,9 @@ namespace SteamGridDB.Xbox
         {
             try
             {
+                // Update panel header with game info
+                GridPanelHeaderText = $"Select artwork for {game.Name} (platform: {game.Platform}, ID: {game.PlatformId})";
+
                 // Show panel with animation
                 await ShowGridPanelAsync();
 
@@ -446,6 +496,7 @@ namespace SteamGridDB.Xbox
                         await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
                         {
                             var newImage = new BitmapImage();
+
                             using (var stream = await imageFile.OpenReadAsync())
                             {
                                 await newImage.SetSourceAsync(stream);
@@ -455,10 +506,10 @@ namespace SteamGridDB.Xbox
                             currentSelectedGame.ImageFileName = imageFileName;
                             currentSelectedGame.HasBackup = backupExists; // Mark that backup exists (original preserved)
 
-                            StatusText.Text = $"Image {imageFileName} updated successfully!";
+                            StatusText.Text = $"Image {imageFileName} updated successfully";
                         });
 
-                        GridPanelStatus.Text = "Image updated successfully!";
+                        GridPanelStatus.Text = "Image updated successfully";
 
                         // Close panel after short delay
                         await Task.Delay(1000);
