@@ -3,13 +3,13 @@
 namespace SteamGridDB.Xbox
 {
     /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
+    /// An empty page that opens if the widget app is treated as a regular UWP app (for example, when debugging).
     /// </summary>
     public sealed partial class MainPage : Page
     {
         public MainPage()
         {
-            this.InitializeComponent();
+            InitializeComponent();
         }
     }
 }

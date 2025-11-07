@@ -11,6 +11,7 @@ namespace SteamGridDB.Xbox.Models
         private string url;
         private string thumbUrl;
         private string style;
+        private string author;
         private int score;
         private int id;
 
@@ -48,6 +49,19 @@ namespace SteamGridDB.Xbox.Models
                 if (style != value)
                 {
                     style = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string Author
+        {
+            get => author;
+            set
+            {
+                if (author != value)
+                {
+                    author = value;
                     OnPropertyChanged();
                 }
             }

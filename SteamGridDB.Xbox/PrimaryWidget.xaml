@@ -2,221 +2,293 @@
     x:Class="SteamGridDB.Xbox.PrimaryWidget"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:SteamGridDB.Xbox.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:SteamGridDB.Xbox"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:SteamGridDB.Xbox.Models"
+    RequestedTheme="Dark"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
+    <Page.Resources>
+        <!--  Modern Button Style  -->
+        <Style x:Key="FluentIconButton" TargetType="Button">
+            <Setter Property="Background" Value="#2D2D2D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+        </Style>
+    </Page.Resources>
 
+    <Grid Background="#1F1F1F">
         <!--  Main Content  -->
-        <Grid Grid.Column="0">
+        <Grid x:Name="MainContentPanel">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!--  Header  -->
-            <StackPanel
+            <!--  Header - Fluent Style  -->
+            <Grid
                 Grid.Row="0"
-                Padding="10"
-                Background="{ThemeResource SystemControlBackgroundAccentBrush}">
+                Padding="16,12"
+                Background="#252525">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!--  App Icon  -->
+                <FontIcon
+                    Grid.Column="0"
+                    Margin="0,0,12,0"
+                    FontFamily="Segoe MDL2 Assets"
+                    FontSize="20"
+                    Foreground="#FFFFFF"
+                    Glyph="&#xE7FC;" />
+
+                <!--  Title  -->
                 <TextBlock
-                    FontSize="16"
-                    FontWeight="Bold"
-                    Foreground="White"
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Foreground="#FFFFFF"
                     Text="Xbox Installed Games Library" />
-            </StackPanel>
+
+                <!--  Header Actions  -->
+                <StackPanel
+                    Grid.Column="2"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <Button
+                        Width="32"
+                        Height="32"
+                        Click="RefreshButton_Click"
+                        Style="{StaticResource FluentIconButton}"
+                        ToolTipService.ToolTip="Refresh">
+                        <FontIcon
+                            FontFamily="Segoe MDL2 Assets"
+                            FontSize="14"
+                            Glyph="&#xE72C;" />
+                    </Button>
+                </StackPanel>
+            </Grid>
 
             <!--  Game entries list  -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                <Grid>
-                    <!--  Instructions panel (shown when no games loaded)  -->
-                    <StackPanel
-                        x:Name="InstructionsPanel"
-                        Padding="20"
-                        Visibility="Collapsed">
-                        <TextBlock
-                            Margin="0,0,0,10"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Text="📁 Access Required" />
-                        <TextBlock Margin="0,0,0,10" TextWrapping="Wrap">
-                            To access your game library, you need to grant file system permission:
-                        </TextBlock>
-                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
-                            1. Open Windows Settings
-                        </TextBlock>
-                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
-                            2. Go to Privacy &amp; Security &gt; File system
-                        </TextBlock>
-                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
-                            3. Enable file system access for this app
-                        </TextBlock>
-                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
-                            4. Click Refresh below
-                        </TextBlock>
-                        <TextBlock
-                            Margin="0,10,0,0"
-                            Opacity="0.7"
-                            TextWrapping="Wrap">
-                            Expected folder: %LOCALAPPDATA%\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries
-                        </TextBlock>
-                    </StackPanel>
+            <Grid Grid.Row="1" Background="#1F1F1F">
+                <!--  Instructions panel  -->
+                <StackPanel
+                    x:Name="InstructionsPanel"
+                    Padding="24"
+                    VerticalAlignment="Center"
+                    Spacing="12"
+                    Visibility="Collapsed">
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        FontFamily="Segoe MDL2 Assets"
+                        FontSize="48"
+                        Foreground="#66FFFFFF"
+                        Glyph="&#xE8F7;" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        Foreground="#FFFFFF"
+                        Text="Access Required" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        Foreground="#99FFFFFF"
+                        Text="Grant file system permission to view your library"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                    <Button
+                        Margin="0,12,0,0"
+                        Padding="16,8"
+                        HorizontalAlignment="Center"
+                        Background="#107C10"
+                        Content="Open Settings"
+                        CornerRadius="4"
+                        Foreground="White" />
+                </StackPanel>
 
-                    <!--  Game entries ListView  -->
-                    <ListView
-                        x:Name="GameEntriesListView"
-                        IsItemClickEnabled="False"
-                        ItemsSource="{x:Bind GameEntries}"
-                        SelectionMode="None">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="models:GameEntry">
-                                <Grid Margin="4" Padding="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="60" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                <!--  Game entries ListView - Fluent Style  -->
+                <ListView
+                    x:Name="GameEntriesListView"
+                    Padding="8,0"
+                    Background="Transparent"
+                    IsItemClickEnabled="False"
+                    ItemsSource="{x:Bind GameEntries}"
+                    SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,0,0,2" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <Grid
+                                            x:Name="RootGrid"
+                                            Background="{TemplateBinding Background}"
+                                            CornerRadius="6">
+                                            <ContentPresenter
+                                                Margin="12,8"
+                                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                Content="{TemplateBinding Content}"
+                                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                            <VisualStateManager.VisualStateGroups>
+                                                <VisualStateGroup x:Name="CommonStates">
+                                                    <VisualState x:Name="Normal" />
+                                                    <VisualState x:Name="PointerOver">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="RootGrid.Background" Value="#2D2D2D" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Pressed">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="RootGrid.Background" Value="#333333" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateManager.VisualStateGroups>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:GameEntry">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
 
-                                    <!--  Game image  -->
-                                    <Border
-                                        Grid.Column="0"
-                                        Width="50"
-                                        Height="50"
-                                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                        CornerRadius="4">
+                                <!--  Game image - Modern rounded  -->
+                                <Grid
+                                    Grid.Column="0"
+                                    Width="48"
+                                    Height="48"
+                                    CornerRadius="4">
+                                    <Grid.Clip>
+                                        <RectangleGeometry Rect="0,0,48,48" />
+                                    </Grid.Clip>
+                                    <Border Background="#2D2D2D" CornerRadius="4">
                                         <Grid>
                                             <Image
                                                 Source="{x:Bind Image, Mode=OneWay}"
                                                 Stretch="UniformToFill"
                                                 Visibility="{x:Bind ImageVisibility, Mode=OneWay}" />
-                                            <TextBlock
+                                            <FontIcon
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
+                                                FontFamily="Segoe MDL2 Assets"
                                                 FontSize="20"
-                                                Text="?"
+                                                Foreground="#66FFFFFF"
+                                                Glyph="&#xE7C5;"
                                                 Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
                                         </Grid>
                                     </Border>
-
-                                    <!--  Game info  -->
-                                    <StackPanel
-                                        Grid.Column="1"
-                                        Margin="10,0,0,0"
-                                        VerticalAlignment="Center">
-                                        <TextBlock
-                                            FontSize="14"
-                                            FontWeight="SemiBold"
-                                            Text="{x:Bind ImageFileName, Mode=OneWay}"
-                                            TextTrimming="CharacterEllipsis"
-                                            TextWrapping="NoWrap" />
-                                        <StackPanel Margin="0,2,0,0" Orientation="Horizontal">
-                                            <TextBlock
-                                                FontSize="11"
-                                                Opacity="0.7"
-                                                Text="{x:Bind Platform, Mode=OneWay}"
-                                                TextTrimming="CharacterEllipsis"
-                                                TextWrapping="NoWrap" />
-                                            <TextBlock
-                                                Margin="4,0"
-                                                FontSize="11"
-                                                Opacity="0.7"
-                                                Text=" • " />
-                                            <TextBlock
-                                                FontSize="11"
-                                                Opacity="0.7"
-                                                Text="{x:Bind PlatformId, Mode=OneWay}"
-                                                TextTrimming="CharacterEllipsis"
-                                                TextWrapping="NoWrap" />
-                                        </StackPanel>
-                                        <TextBlock
-                                            FontSize="10"
-                                            Opacity="0.5"
-                                            TextTrimming="CharacterEllipsis"
-                                            TextWrapping="NoWrap">
-                                            <Run Text="Added: " />
-                                            <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}" />
-                                        </TextBlock>
-                                    </StackPanel>
-
-                                    <!--  Buttons  -->
-                                    <StackPanel
-                                        Grid.Column="2"
-                                        VerticalAlignment="Center"
-                                        Orientation="Horizontal">
-                                        <!--  Edit button  -->
-                                        <Button
-                                            Width="40"
-                                            Height="40"
-                                            Margin="5"
-                                            Padding="0"
-                                            HorizontalContentAlignment="Center"
-                                            VerticalContentAlignment="Center"
-                                            Click="EditGameImage_Click"
-                                            Content="›"
-                                            FontSize="25"
-                                            Tag="{x:Bind}"
-                                            ToolTipService.ToolTip="Search for a new image" />
-
-                                        <!--  Restore button (visible only if backup exists)  -->
-                                        <Button
-                                            Width="40"
-                                            Height="40"
-                                            Margin="5"
-                                            Padding="0"
-                                            HorizontalContentAlignment="Center"
-                                            VerticalContentAlignment="Center"
-                                            Click="RestoreBackup_Click"
-                                            Content="↶"
-                                            FontSize="25"
-                                            Tag="{x:Bind}"
-                                            ToolTipService.ToolTip="Restore backup"
-                                            Visibility="{x:Bind RestoreButtonVisibility, Mode=OneWay}" />
-                                    </StackPanel>
                                 </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </ScrollViewer>
 
-            <!--  Status bar  -->
-            <StackPanel
+                                <!--  Game info - Modern typography  -->
+                                <StackPanel
+                                    Grid.Column="1"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center">
+                                    <TextBlock
+                                        FontSize="13"
+                                        FontWeight="SemiBold"
+                                        Foreground="#FFFFFF"
+                                        Text="{x:Bind ImageFileName, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis"
+                                        TextWrapping="NoWrap" />
+                                    <TextBlock
+                                        FontSize="11"
+                                        Foreground="#99FFFFFF"
+                                        Opacity="0.8">
+                                        <Run Text="{x:Bind Platform, Mode=OneWay}" />
+                                        <Run Text=" • " />
+                                        <Run Text="{x:Bind PlatformId, Mode=OneWay}" />
+                                        <Run Text=" • " />
+                                        <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}" />
+                                    </TextBlock>
+                                </StackPanel>
+
+                                <!--  Action buttons - Fluent style  -->
+                                <StackPanel
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal"
+                                    Spacing="4">
+                                    <!--  Restore button  -->
+                                    <Button
+                                        Width="32"
+                                        Height="32"
+                                        Click="RestoreBackup_Click"
+                                        Style="{StaticResource FluentIconButton}"
+                                        Tag="{x:Bind}"
+                                        ToolTipService.ToolTip="Restore backup"
+                                        Visibility="{x:Bind RestoreButtonVisibility, Mode=OneWay}">
+                                        <FontIcon
+                                            FontFamily="Segoe MDL2 Assets"
+                                            FontSize="14"
+                                            Glyph="&#xE7A7;" />
+                                    </Button>
+
+                                    <!--  Edit button  -->
+                                    <Button
+                                        Width="32"
+                                        Height="32"
+                                        Click="EditGameImage_Click"
+                                        Style="{StaticResource FluentIconButton}"
+                                        Tag="{x:Bind}"
+                                        ToolTipService.ToolTip="Change artwork">
+                                        <FontIcon
+                                            FontFamily="Segoe MDL2 Assets"
+                                            FontSize="14"
+                                            Glyph="&#xE104;" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+
+            <!--  Status bar - Minimal  -->
+            <Border
                 Grid.Row="2"
-                Padding="10"
-                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                Padding="16,8"
+                Background="#252525"
+                BorderBrush="#333333"
+                BorderThickness="0,1,0,0">
                 <TextBlock
                     x:Name="StatusText"
-                    FontSize="12"
-                    Opacity="0.7"
+                    FontSize="11"
+                    Foreground="#99FFFFFF"
                     Text="Loading..." />
-                <Button
-                    x:Name="refreshButton"
-                    Margin="0,5,0,0"
-                    Click="RefreshButton_Click">
-                    Refresh
-                </Button>
-            </StackPanel>
+            </Border>
         </Grid>
 
-        <!--  Grid Selection Panel (Slide-out)  -->
+        <!--  Grid Selection Panel - Full Screen Slide Up  -->
         <Grid
             x:Name="GridSelectionPanel"
-            Grid.Column="1"
-            Width="300"
-            Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}"
-            BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-            BorderThickness="1,0,0,0"
+            Background="#1F1F1F"
             RenderTransformOrigin="0.5,0.5"
             Visibility="Collapsed">
             <Grid.RenderTransform>
-                <TranslateTransform x:Name="GridPanelTransform" X="300" />
+                <TranslateTransform x:Name="GridPanelTransform" Y="800" />
             </Grid.RenderTransform>
 
             <Grid.RowDefinitions>
@@ -225,101 +297,124 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!--  Panel Header  -->
+            <!--  Panel Header with Back Button  -->
             <Grid
                 Grid.Row="0"
-                Padding="10"
-                Background="{ThemeResource SystemControlBackgroundAccentBrush}">
+                Padding="16,12"
+                Background="#252525">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock
+                <!--  Back Button  -->
+                <Button
                     Grid.Column="0"
+                    Width="32"
+                    Height="32"
+                    Margin="0,0,12,0"
+                    Click="CloseGridPanel_Click"
+                    Style="{StaticResource FluentIconButton}"
+                    ToolTipService.ToolTip="Back">
+                    <FontIcon
+                        FontFamily="Segoe MDL2 Assets"
+                        FontSize="16"
+                        Glyph="&#xE0A6;" />
+                </Button>
+
+                <TextBlock
+                    Grid.Column="1"
                     VerticalAlignment="Center"
                     FontSize="14"
                     FontWeight="SemiBold"
-                    Foreground="White"
-                    Text="Select Grid Image" />
+                    Foreground="#FFFFFF"
+                    Text="Select artwork" />
 
+                <!--  Optional: More options button  -->
                 <Button
-                    Grid.Column="1"
+                    Grid.Column="2"
                     Width="32"
                     Height="32"
-                    Padding="0"
-                    Click="CloseGridPanel_Click"
-                    Content="✕"
-                    FontSize="16" />
+                    Style="{StaticResource FluentIconButton}"
+                    ToolTipService.ToolTip="More options"
+                    Visibility="Collapsed">
+                    <FontIcon
+                        FontFamily="Segoe MDL2 Assets"
+                        FontSize="16"
+                        Glyph="&#xE712;" />
+                </Button>
             </Grid>
 
             <!--  Grid Images List  -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <Grid>
-                    <StackPanel x:Name="GridImagesContainer" Padding="10">
-                        <!--  Grid images will be added here dynamically  -->
+                    <StackPanel Padding="16">
+                        <!--  Grid images  -->
                         <GridView
                             x:Name="GridImagesView"
                             IsItemClickEnabled="True"
                             ItemClick="GridImage_Click"
                             SelectionMode="None">
+                            <GridView.ItemContainerStyle>
+                                <Style TargetType="GridViewItem">
+                                    <Setter Property="Margin" Value="4" />
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Style>
+                            </GridView.ItemContainerStyle>
                             <GridView.ItemTemplate>
                                 <DataTemplate x:DataType="models:GridImageItem">
-                                    <Grid Width="120" Margin="5">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="120" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
+                                    <Grid
+                                        Width="140"
+                                        Height="140"
+                                        Background="#2D2D2D"
+                                        CornerRadius="6">
+                                        <Grid.Clip>
+                                            <RectangleGeometry Rect="0,0,140,140" />
+                                        </Grid.Clip>
+                                        <Image Source="{x:Bind ThumbUrl, Mode=OneWay}" Stretch="UniformToFill" />
                                         <Border
-                                            Grid.Row="0"
-                                            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                            CornerRadius="4">
-                                            <Image Source="{x:Bind ThumbUrl, Mode=OneWay}" Stretch="UniformToFill" />
-                                        </Border>
-
-                                        <!--<StackPanel Grid.Row="1" Margin="0,5,0,0">
-                                            <TextBlock
-                                                FontSize="10"
-                                                Text="{x:Bind Style, Mode=OneWay}"
-                                                TextAlignment="Center"
-                                                TextTrimming="CharacterEllipsis"
-                                                TextWrapping="NoWrap" />
+                                            Padding="8,4"
+                                            VerticalAlignment="Bottom"
+                                            Background="#CC000000">
                                             <TextBlock
                                                 FontSize="9"
-                                                Opacity="0.7"
-                                                TextAlignment="Center">
-                                                <Run Text="Score: " />
-                                                <Run Text="{x:Bind Score, Mode=OneWay}" />
-                                            </TextBlock>
-                                        </StackPanel>-->
+                                                FontWeight="SemiBold"
+                                                Foreground="#CCFFFFFF"
+                                                Text="{x:Bind Author, Mode=OneWay}"
+                                                TextAlignment="Center" />
+                                        </Border>
                                     </Grid>
                                 </DataTemplate>
                             </GridView.ItemTemplate>
                         </GridView>
                     </StackPanel>
 
-                    <!--  Loading indicator - overlaid on top, doesn't affect layout  -->
+                    <!--  Loading indicator - overlaid  -->
                     <ProgressRing
                         x:Name="GridLoadingRing"
                         Width="40"
                         Height="40"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
+                        Foreground="White"
                         IsActive="False" />
                 </Grid>
             </ScrollViewer>
 
             <!--  Panel Status  -->
             <Border
-                x:Name="GridPanelStatusBorder"
                 Grid.Row="2"
-                Padding="10"
-                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                Padding="16,8"
+                Background="#252525"
+                BorderBrush="#333333"
+                BorderThickness="0,1,0,0">
                 <TextBlock
                     x:Name="GridPanelStatus"
                     FontSize="11"
-                    Opacity="0.7"
+                    Foreground="#99FFFFFF"
                     TextWrapping="Wrap" />
             </Border>
         </Grid>

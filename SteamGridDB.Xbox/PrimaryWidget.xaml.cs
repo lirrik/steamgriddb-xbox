@@ -30,13 +30,13 @@ namespace SteamGridDB.Xbox
 
         private GameEntry currentSelectedGame;
         private StorageFolder currentGameFolder;
-        private string SteamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+        private string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
 
         public PrimaryWidget()
         {
-            this.InitializeComponent();
+            InitializeComponent();
             GameEntries = new ObservableCollection<GameEntry>();
-            this.Loaded += PrimaryWidget_Loaded;
+            Loaded += PrimaryWidget_Loaded;
         }
 
         private async void PrimaryWidget_Loaded(object sender, RoutedEventArgs e)
@@ -97,6 +97,7 @@ namespace SteamGridDB.Xbox
                         StatusText.Text = "ThirdPartyLibraries folder not found. Make sure games are added to Xbox app.";
                         GameEntriesListView.Visibility = Visibility.Collapsed;
                     });
+
                     return;
                 }
 
@@ -108,6 +109,7 @@ namespace SteamGridDB.Xbox
                         InstructionsPanel.Visibility = Visibility.Visible;
                         GameEntriesListView.Visibility = Visibility.Collapsed;
                     });
+
                     return;
                 }
 
@@ -297,6 +299,7 @@ namespace SteamGridDB.Xbox
 
                 // Get the platform string for SteamGridDB API
                 string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
+
                 if (string.IsNullOrEmpty(platformString))
                 {
                     GridPanelStatus.Text = "Unsupported platform";
@@ -322,16 +325,15 @@ namespace SteamGridDB.Xbox
                 }
 
                 // Fetch grids from SteamGridDB
-                using (var client = new SteamGridDbClient(SteamGridDbApiKey))
+                using (var client = new SteamGridDbClient(steamGridDbApiKey))
                 {
-                    var grids = await client.GetSquareGridsByPlatformIdAsync(
-                 platformString,
-               game.PlatformId);
+                    var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.PlatformId);
 
                     if (grids == null || grids.Count == 0)
                     {
-                        GridPanelStatus.Text = "No grids found for this game";
+                        GridPanelStatus.Text = "No artworks found for this game";
                         GridLoadingRing.IsActive = false;
+
                         return;
                     }
 
@@ -346,12 +348,13 @@ namespace SteamGridDB.Xbox
                             Id = grid.Id,
                             Url = grid.Url,
                             ThumbUrl = grid.Thumb ?? grid.Url,
+                            Author = grid.Author?.Name ?? "Unknown",
                             Style = grid.Style ?? "default",
                             Score = grid.Score
                         });
                     }
 
-                    GridPanelStatus.Text = $"Found {grids.Count} grid(s)";
+                    GridPanelStatus.Text = $"Found {grids.Count} artworks(s)";
                 }
 
                 GridLoadingRing.IsActive = false;
@@ -360,7 +363,7 @@ namespace SteamGridDB.Xbox
             {
                 GridPanelStatus.Text = $"Error: {ex.Message}";
                 GridLoadingRing.IsActive = false;
-                System.Diagnostics.Debug.WriteLine($"Error loading grids: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading artworks: {ex.Message}");
             }
         }
 
@@ -447,6 +450,7 @@ namespace SteamGridDB.Xbox
                             {
                                 await newImage.SetSourceAsync(stream);
                             }
+
                             currentSelectedGame.Image = newImage;
                             currentSelectedGame.ImageFileName = imageFileName;
                             currentSelectedGame.HasBackup = backupExists; // Mark that backup exists (original preserved)
@@ -484,21 +488,22 @@ namespace SteamGridDB.Xbox
         {
             GridSelectionPanel.Visibility = Visibility.Visible;
 
+            // Slide up from bottom animation (like Xbox notifications)
             var animation = new DoubleAnimation
             {
-                From = 300,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(300),
+                From = 800,  // Start below screen
+                To = 0,      // End at normal position
+                Duration = TimeSpan.FromMilliseconds(250),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
 
             var storyboard = new Storyboard();
             storyboard.Children.Add(animation);
             Storyboard.SetTarget(animation, GridPanelTransform);
-            Storyboard.SetTargetProperty(animation, "X");
+            Storyboard.SetTargetProperty(animation, "Y");  // Animate Y instead of X
 
             storyboard.Begin();
-            await Task.Delay(300);
+            await Task.Delay(250);
         }
 
         /// <summary>
@@ -506,21 +511,22 @@ namespace SteamGridDB.Xbox
         /// </summary>
         private async Task HideGridPanelAsync()
         {
+            // Slide down animation (reverse)
             var animation = new DoubleAnimation
             {
                 From = 0,
-                To = 300,
-                Duration = TimeSpan.FromMilliseconds(300),
+                To = 800,  // Slide below screen
+                Duration = TimeSpan.FromMilliseconds(200),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
             };
 
             var storyboard = new Storyboard();
             storyboard.Children.Add(animation);
             Storyboard.SetTarget(animation, GridPanelTransform);
-            Storyboard.SetTargetProperty(animation, "X");
+            Storyboard.SetTargetProperty(animation, "Y");  // Animate Y instead of X
 
             storyboard.Begin();
-            await Task.Delay(300);
+            await Task.Delay(200);
 
             GridSelectionPanel.Visibility = Visibility.Collapsed;
             GridImagesView.Items.Clear();
@@ -542,6 +548,7 @@ namespace SteamGridDB.Xbox
         private async void RestoreBackup_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
+
             if (button?.Tag is GameEntry gameEntry)
             {
                 await RestoreBackupAsync(gameEntry);
@@ -567,6 +574,7 @@ namespace SteamGridDB.Xbox
                 string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
 
                 StorageFolder gameFolder = null;
+
                 try
                 {
                     gameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
@@ -633,6 +641,7 @@ namespace SteamGridDB.Xbox
                     {
                         StatusText.Text = $"Error restoring backup: {ex.Message}";
                     });
+
                     System.Diagnostics.Debug.WriteLine($"Error restoring backup: {ex.Message}");
                 }
             }
