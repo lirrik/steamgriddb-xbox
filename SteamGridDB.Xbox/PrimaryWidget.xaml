@@ -233,7 +233,7 @@
                                         <Run Text="{x:Bind Platform, Mode=OneWay}" />
                                         <Run Text=" • " />
                                         <Run Text="{x:Bind PlatformId, Mode=OneWay}" />
-                                        <Run Text=" • " />
+                                        <Run Text=" • Added: " />
                                         <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}" />
                                     </TextBlock>
                                 </StackPanel>
@@ -268,7 +268,7 @@
                                             Click="SearchGameImage_Click"
                                             Style="{StaticResource FluentIconButton}"
                                             Tag="{x:Bind}"
-                                            ToolTipService.ToolTip="Search for game manually"
+                                            ToolTipService.ToolTip="Search manually"
                                             Visibility="{x:Bind SearchButtonVisibility, Mode=OneWay}">
                                             <FontIcon
                                                 FontFamily="Segoe MDL2 Assets"
@@ -501,7 +501,7 @@
                     FontSize="14"
                     FontWeight="SemiBold"
                     Foreground="#FFFFFF"
-                    Text="Search for game" />
+                    Text="Manual search" />
             </Grid>
 
             <!--  Search Box and Results  -->
@@ -514,33 +514,54 @@
                 <!--  Search Box  -->
                 <StackPanel
                     Grid.Row="0"
-                    Padding="16"
-                    Spacing="8">
-                    <TextBox
-                        x:Name="GameSearchBox"
-                        Padding="12,8"
-                        Background="#2D2D2D"
-                        BorderBrush="#404040"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        FontSize="13"
-                        Foreground="White"
-                        KeyDown="GameSearchBox_KeyDown"
-                        PlaceholderText="Enter game name..." />
-                    <Button
-                        Padding="16,8"
-                        HorizontalAlignment="Stretch"
-                        Background="#107C10"
-                        Click="SearchGames_Click"
-                        Content="Search"
-                        CornerRadius="4"
-                        Foreground="White" />
+                    Padding="16,16,16,0"
+                    Spacing="0">
+                    <Grid>
+                        <TextBox
+                            x:Name="GameSearchBox"
+                            Height="40"
+                            Padding="12,8,40,8"
+                            VerticalContentAlignment="Center"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            FontSize="13"
+                            KeyDown="GameSearchBox_KeyDown">
+                            <TextBox.Resources>
+                                <SolidColorBrush x:Key="TextControlBackground" Color="#1E1E1E" />
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#1E1E1E" />
+                                <SolidColorBrush x:Key="TextControlForeground" Color="White" />
+                                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="White" />
+                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="#404040" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#666666" />
+                            </TextBox.Resources>
+                        </TextBox>
+
+                        <!--  Search Icon Button  -->
+                        <Button
+                            Width="32"
+                            Height="32"
+                            Margin="0,0,4,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="SearchGames_Click"
+                            CornerRadius="4"
+                            IsTabStop="False"
+                            ToolTipService.ToolTip="Search">
+                            <FontIcon
+                                FontFamily="Segoe MDL2 Assets"
+                                FontSize="16"
+                                Foreground="#FFFFFF"
+                                Glyph="&#xE721;" />
+                        </Button>
+                    </Grid>
                 </StackPanel>
 
                 <!--  Search Results  -->
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <Grid>
-                        <StackPanel x:Name="SearchResultsContainer" Padding="16">
+                        <StackPanel x:Name="SearchResultsContainer" Padding="16,8,16,16">
                             <!--  Results List  -->
                             <ListView
                                 x:Name="SearchResultsListView"
