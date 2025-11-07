@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,13 +16,14 @@ using Windows.Web.Http;
 
 using SteamGridDB.Xbox.Models;
 using SteamGridDB.Xbox.Services.SteamGridDB;
+using SteamGridDB.Xbox.Services.SteamGridDB.Models;
 
 namespace SteamGridDB.Xbox
 {
     /// <summary>
     /// Primary widget page that loads and displays Xbox app third-party games.
     /// </summary>
-    public sealed partial class PrimaryWidget : Page
+    public sealed partial class PrimaryWidget : Page, INotifyPropertyChanged
     {
         public ObservableCollection<GameEntry> GameEntries
         {
@@ -31,6 +33,7 @@ namespace SteamGridDB.Xbox
         private GameEntry currentSelectedGame;
         private StorageFolder currentGameFolder;
         private readonly string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+        private int currentSearchedGameId = 0;
 
         private string gridPanelHeaderText = "Select artwork";
         public string GridPanelHeaderText
@@ -41,9 +44,16 @@ namespace SteamGridDB.Xbox
                 if (gridPanelHeaderText != value)
                 {
                     gridPanelHeaderText = value;
-                    Bindings.Update();
+                    OnPropertyChanged(nameof(GridPanelHeaderText));
                 }
             }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         public PrimaryWidget()
@@ -597,6 +607,250 @@ namespace SteamGridDB.Xbox
         private async void CloseGridPanel_Click(object sender, RoutedEventArgs e)
         {
             await HideGridPanelAsync();
+        }
+
+        /// <summary>
+        /// Handle search button click to show game search panel
+        /// </summary>
+        private async void SearchGameImage_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+
+            if (button?.Tag is GameEntry gameEntry)
+            {
+                currentSelectedGame = gameEntry;
+                await ShowSearchPanelAsync();
+            }
+        }
+
+        /// <summary>
+        /// Handle search box key down (Enter to search)
+        /// </summary>
+        private async void GameSearchBox_KeyDown(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                await PerformGameSearchAsync();
+            }
+        }
+
+        /// <summary>
+        /// Handle search button click
+        /// </summary>
+        private async void SearchGames_Click(object sender, RoutedEventArgs e)
+        {
+            await PerformGameSearchAsync();
+        }
+
+        /// <summary>
+        /// Perform game search using SteamGridDB API
+        /// </summary>
+        private async Task PerformGameSearchAsync()
+        {
+            try
+            {
+                string searchTerm = GameSearchBox.Text?.Trim();
+
+                if (string.IsNullOrEmpty(searchTerm))
+                {
+                    SearchPanelStatus.Text = "Please enter a game name";
+                    return;
+                }
+
+                SearchLoadingRing.IsActive = true;
+                SearchResultsListView.Items.Clear();
+                SearchPanelStatus.Text = $"Searching for '{searchTerm}'...";
+
+                using (var client = new SteamGridDbClient(steamGridDbApiKey))
+                {
+                    var results = await client.SearchGameByNameAsync(searchTerm);
+
+                    if (results == null || results.Count == 0)
+                    {
+                        SearchPanelStatus.Text = "No games found";
+                        SearchLoadingRing.IsActive = false;
+                        return;
+                    }
+
+                    // Add results to list
+                    foreach (var game in results)
+                    {
+                        SearchResultsListView.Items.Add(game);
+                    }
+
+                    SearchPanelStatus.Text = $"Found {results.Count} game(s)";
+                }
+
+                SearchLoadingRing.IsActive = false;
+            }
+            catch (Exception ex)
+            {
+                SearchPanelStatus.Text = $"Error: {ex.Message}";
+                SearchLoadingRing.IsActive = false;
+                System.Diagnostics.Debug.WriteLine($"Error searching games: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle search result selection
+        /// </summary>
+        private async void SearchResult_Click(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is SteamGridDbGame selectedGame)
+            {
+                // Store the selected game ID
+                currentSearchedGameId = selectedGame.Id;
+
+                // DO NOT update current game's name - keep it as "Unknown" so user can search again
+
+                // Hide search panel and show grid selection panel
+                await HideSearchPanelAsync();
+                await LoadGridSelectionByGameIdAsync(selectedGame);
+            }
+        }
+
+        /// <summary>
+        /// Loads grid selection panel for a game by its SteamGridDB ID.
+        /// Reuses the existing LoadGridSelectionPanelAsync logic.
+        /// </summary>
+        private async Task LoadGridSelectionByGameIdAsync(SteamGridDbGame game)
+        {
+            try
+            {
+                // Update panel header
+                GridPanelHeaderText = $"Select artwork for {game.Name} (SteamGridDB ID: {game.Id})";
+
+                // Show panel with animation
+                await ShowGridPanelAsync();
+
+                // Show loading indicator
+                GridLoadingRing.IsActive = true;
+                GridImagesView.Items.Clear();
+                GridPanelStatus.Text = $"Loading artworks for {game.Name}...";
+
+                // Find the game folder (for saving later)
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string thirdPartyLibrariesPath = Path.Combine(userProfile,
+                     @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
+                string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, currentSelectedGame.Directory);
+
+                try
+                {
+                    currentGameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
+                }
+                catch
+                {
+                    GridPanelStatus.Text = "Could not access game folder";
+                    GridLoadingRing.IsActive = false;
+
+                    return;
+                }
+
+                // Fetch grids from SteamGridDB by game ID
+                using (var client = new SteamGridDbClient(steamGridDbApiKey))
+                {
+                    var grids = await client.GetSquareGridsByGameIdAsync(game.Id);
+
+                    if (grids == null || grids.Count == 0)
+                    {
+                        GridPanelStatus.Text = "No artworks found for this game";
+                        GridLoadingRing.IsActive = false;
+                        return;
+                    }
+
+                    // Sort by score (highest first)
+                    var sortedGrids = grids.OrderByDescending(g => g.Score).ToList();
+
+                    // Add items to grid view
+                    foreach (var grid in sortedGrids)
+                    {
+                        GridImagesView.Items.Add(new GridImageItem
+                        {
+                            Id = grid.Id,
+                            Url = grid.Url,
+                            ThumbUrl = grid.Thumb ?? grid.Url,
+                            Author = grid.Author?.Name ?? "Unknown",
+                            Style = grid.Style ?? "default",
+                            Score = grid.Score
+                        });
+                    }
+
+                    GridPanelStatus.Text = $"Found {grids.Count} artwork(s)";
+                }
+
+                GridLoadingRing.IsActive = false;
+            }
+            catch (Exception ex)
+            {
+                GridPanelStatus.Text = $"Error: {ex.Message}";
+                GridLoadingRing.IsActive = false;
+                System.Diagnostics.Debug.WriteLine($"Error loading artworks: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Show the search panel with animation
+        /// </summary>
+        private async Task ShowSearchPanelAsync()
+        {
+            GameSearchPanel.Visibility = Visibility.Visible;
+            GameSearchBox.Text = "";
+            SearchResultsListView.Items.Clear();
+            SearchPanelStatus.Text = "Enter a game name to search";
+
+            // Slide up from bottom animation
+            var animation = new DoubleAnimation
+            {
+                From = 800,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(animation);
+            Storyboard.SetTarget(animation, SearchPanelTransform);
+            Storyboard.SetTargetProperty(animation, "Y");
+
+            storyboard.Begin();
+            await Task.Delay(250);
+
+            // Focus search box
+            GameSearchBox.Focus(FocusState.Programmatic);
+        }
+
+        /// <summary>
+        /// Hide the search panel with animation
+        /// </summary>
+        private async Task HideSearchPanelAsync()
+        {
+            // Slide down animation
+            var animation = new DoubleAnimation
+            {
+                From = 0,
+                To = 800,
+                Duration = TimeSpan.FromMilliseconds(200),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(animation);
+            Storyboard.SetTarget(animation, SearchPanelTransform);
+            Storyboard.SetTargetProperty(animation, "Y");
+
+            storyboard.Begin();
+            await Task.Delay(200);
+
+            GameSearchPanel.Visibility = Visibility.Collapsed;
+            SearchResultsListView.Items.Clear();
+        }
+
+        /// <summary>
+        /// Handle close search panel button click
+        /// </summary>
+        private async void CloseSearchPanel_Click(object sender, RoutedEventArgs e)
+        {
+            await HideSearchPanelAsync();
         }
 
         /// <summary>

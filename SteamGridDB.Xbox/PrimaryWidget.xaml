@@ -7,6 +7,7 @@
     xmlns:local="using:SteamGridDB.Xbox"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:SteamGridDB.Xbox.Models"
+    xmlns:sgdbModels="using:SteamGridDB.Xbox.Services.SteamGridDB.Models"
     RequestedTheme="Dark"
     mc:Ignorable="d">
 
@@ -258,6 +259,21 @@
                                             Glyph="&#xE7A7;" />
                                     </Button>
 
+                                    <!--  Search button (for Unknown games)  -->
+                                    <Button
+                                        Width="32"
+                                        Height="32"
+                                        Click="SearchGameImage_Click"
+                                        Style="{StaticResource FluentIconButton}"
+                                        Tag="{x:Bind}"
+                                        ToolTipService.ToolTip="Search for game manually"
+                                        Visibility="{x:Bind SearchButtonVisibility, Mode=OneWay}">
+                                        <FontIcon
+                                            FontFamily="Segoe MDL2 Assets"
+                                            FontSize="14"
+                                            Glyph="&#xE721;" />
+                                    </Button>
+
                                     <!--  Edit button  -->
                                     <Button
                                         Width="32"
@@ -266,7 +282,8 @@
                                         IsEnabled="{x:Bind CanEditImage, Mode=OneWay}"
                                         Style="{StaticResource FluentIconButton}"
                                         Tag="{x:Bind}"
-                                        ToolTipService.ToolTip="Change artwork">
+                                        ToolTipService.ToolTip="Change artwork"
+                                        Visibility="{x:Bind EditButtonVisibility, Mode=OneWay}">
                                         <FontIcon
                                             FontFamily="Segoe MDL2 Assets"
                                             FontSize="14"
@@ -342,7 +359,7 @@
                     FontSize="14"
                     FontWeight="SemiBold"
                     Foreground="#FFFFFF"
-                    Text="{x:Bind GridPanelHeaderText}"
+                    Text="{x:Bind GridPanelHeaderText, Mode=OneWay}"
                     TextWrapping="Wrap" />
 
                 <!--  Optional: More options button  -->
@@ -427,6 +444,192 @@
                 BorderThickness="0,1,0,0">
                 <TextBlock
                     x:Name="GridPanelStatus"
+                    FontSize="11"
+                    Foreground="#99FFFFFF"
+                    TextWrapping="Wrap" />
+            </Border>
+        </Grid>
+
+        <!--  Game Search Panel - Full Screen Slide Up  -->
+        <Grid
+            x:Name="GameSearchPanel"
+            Background="#1F1F1F"
+            RenderTransformOrigin="0.5,0.5"
+            Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="SearchPanelTransform" Y="800" />
+            </Grid.RenderTransform>
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Panel Header with Back Button  -->
+            <Grid
+                Grid.Row="0"
+                Padding="16,12"
+                Background="#252525">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!--  Back Button  -->
+                <Button
+                    Grid.Column="0"
+                    Width="32"
+                    Height="32"
+                    Margin="0,0,12,0"
+                    Click="CloseSearchPanel_Click"
+                    Style="{StaticResource FluentIconButton}"
+                    ToolTipService.ToolTip="Back">
+                    <FontIcon
+                        FontFamily="Segoe MDL2 Assets"
+                        FontSize="16"
+                        Glyph="&#xE0A6;" />
+                </Button>
+
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Foreground="#FFFFFF"
+                    Text="Search for game" />
+            </Grid>
+
+            <!--  Search Box and Results  -->
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--  Search Box  -->
+                <StackPanel
+                    Grid.Row="0"
+                    Padding="16"
+                    Spacing="8">
+                    <TextBox
+                        x:Name="GameSearchBox"
+                        Padding="12,8"
+                        Background="#2D2D2D"
+                        BorderBrush="#404040"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        FontSize="13"
+                        Foreground="White"
+                        KeyDown="GameSearchBox_KeyDown"
+                        PlaceholderText="Enter game name..." />
+                    <Button
+                        Padding="16,8"
+                        HorizontalAlignment="Stretch"
+                        Background="#107C10"
+                        Click="SearchGames_Click"
+                        Content="Search"
+                        CornerRadius="4"
+                        Foreground="White" />
+                </StackPanel>
+
+                <!--  Search Results  -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <StackPanel x:Name="SearchResultsContainer" Padding="16">
+                            <!--  Results List  -->
+                            <ListView
+                                x:Name="SearchResultsListView"
+                                Background="Transparent"
+                                IsItemClickEnabled="True"
+                                ItemClick="SearchResult_Click"
+                                SelectionMode="None">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0,0,0,2" />
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListViewItem">
+                                                    <Grid
+                                                        x:Name="RootGrid"
+                                                        Background="{TemplateBinding Background}"
+                                                        CornerRadius="6">
+                                                        <ContentPresenter
+                                                            Margin="12,8"
+                                                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                            Content="{TemplateBinding Content}"
+                                                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                                        <VisualStateManager.VisualStateGroups>
+                                                            <VisualStateGroup x:Name="CommonStates">
+                                                                <VisualState x:Name="Normal" />
+                                                                <VisualState x:Name="PointerOver">
+                                                                    <VisualState.Setters>
+                                                                        <Setter Target="RootGrid.Background" Value="#2D2D2D" />
+                                                                    </VisualState.Setters>
+                                                                </VisualState>
+                                                                <VisualState x:Name="Pressed">
+                                                                    <VisualState.Setters>
+                                                                        <Setter Target="RootGrid.Background" Value="#333333" />
+                                                                    </VisualState.Setters>
+                                                                </VisualState>
+                                                            </VisualStateGroup>
+                                                        </VisualStateManager.VisualStateGroups>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="sgdbModels:SteamGridDbGame">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock
+                                                FontSize="13"
+                                                FontWeight="SemiBold"
+                                                Foreground="#FFFFFF"
+                                                Text="{x:Bind Name}"
+                                                TextWrapping="Wrap" />
+                                            <TextBlock FontSize="11" Foreground="#99FFFFFF">
+                                                <Run Text="ID: " />
+                                                <Run Text="{x:Bind Id}" />
+                                                <Run Text=" • " />
+                                                <Run Text="Verified: " />
+                                                <Run Text="{x:Bind Verified}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+
+                        <!--  Loading indicator  -->
+                        <ProgressRing
+                            x:Name="SearchLoadingRing"
+                            Width="40"
+                            Height="40"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="White"
+                            IsActive="False" />
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+
+            <!--  Panel Status  -->
+            <Border
+                Grid.Row="2"
+                Padding="16,8"
+                Background="#252525"
+                BorderBrush="#333333"
+                BorderThickness="0,1,0,0">
+                <TextBlock
+                    x:Name="SearchPanelStatus"
                     FontSize="11"
                     Foreground="#99FFFFFF"
                     TextWrapping="Wrap" />

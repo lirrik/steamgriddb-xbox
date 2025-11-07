@@ -27,6 +27,10 @@ namespace SteamGridDB.Xbox.Models
                 {
                     name = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(CanEditImage));
+                    OnPropertyChanged(nameof(CanSearchGame));
+                    OnPropertyChanged(nameof(EditButtonVisibility));
+                    OnPropertyChanged(nameof(SearchButtonVisibility));
                 }
             }
         }
@@ -101,6 +105,15 @@ namespace SteamGridDB.Xbox.Models
 
         // Edit button should be enabled only if ImageFileName is not "Not found"
         public bool CanEditImage => !string.IsNullOrEmpty(ImageFileName) && ImageFileName != "Not found";
+
+        // Search button should be visible when Name is "Unknown"
+        public bool CanSearchGame => Name == "Unknown";
+
+        // Edit button visible when NOT searching
+        public Visibility EditButtonVisibility => !CanSearchGame ? Visibility.Visible : Visibility.Collapsed;
+
+        // Search button visible when Name is "Unknown"
+        public Visibility SearchButtonVisibility => CanSearchGame ? Visibility.Visible : Visibility.Collapsed;
 
         public bool HasBackup
         {
