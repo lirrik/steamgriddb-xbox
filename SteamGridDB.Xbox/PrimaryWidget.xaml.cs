@@ -138,6 +138,13 @@ namespace SteamGridDB.Xbox
                 foreach (var folder in folders)
                 {
                     string directoryName = folder.Name;
+
+                    if (directoryName == "bnet")
+                    {
+                        // Skip Battle.net folder as it is not currently supported - Xbox app does not store images here
+                        continue;
+                    }
+
                     string manifestFileName = $"{directoryName}.manifest";
 
                     try
@@ -148,9 +155,8 @@ namespace SteamGridDB.Xbox
                         // Read and parse the manifest JSON file
                         string jsonContent = await FileIO.ReadTextAsync(manifestFile);
 
-                        JsonObject root = null;
 
-                        if (JsonObject.TryParse(jsonContent, out root))
+                        if (JsonObject.TryParse(jsonContent, out JsonObject root))
                         {
                             // Check if gameCache exists in the root
                             if (!root.ContainsKey("gameCache"))

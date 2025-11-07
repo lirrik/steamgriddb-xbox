@@ -94,11 +94,13 @@ namespace SteamGridDB.Xbox.Models
                 {
                     imageFileName = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(CanEditImage));
                 }
             }
         }
 
-        // TODO: Resolve game name from API
+        // Edit button should be enabled only if ImageFileName is not "Not found"
+        public bool CanEditImage => !string.IsNullOrEmpty(ImageFileName) && ImageFileName != "Not found";
 
         public bool HasBackup
         {
