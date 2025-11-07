@@ -34,6 +34,27 @@ namespace SteamGridDB.Xbox.Models
             }
         }
 
+        public static string ToXboxDirectory(GamePlatform platform)
+        {
+            switch (platform)
+            {
+                case GamePlatform.Steam:
+                    return "steam";
+                case GamePlatform.GOG:
+                    return "gog";
+                case GamePlatform.Epic:
+                    return "epic";
+                case GamePlatform.Ubisoft:
+                    return "ubi";
+                case GamePlatform.BattleNet:
+                    return "bnet";
+                case GamePlatform.EA:
+                    return "ea";
+                default:
+                    return null;
+            }
+        }
+
         public static string GamePlatformToSGDBApiString(GamePlatform platform)
         {
             switch (platform)

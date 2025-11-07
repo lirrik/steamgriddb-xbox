@@ -259,36 +259,39 @@
                                             Glyph="&#xE7A7;" />
                                     </Button>
 
-                                    <!--  Search button (for Unknown games)  -->
-                                    <Button
-                                        Width="32"
-                                        Height="32"
-                                        Click="SearchGameImage_Click"
-                                        Style="{StaticResource FluentIconButton}"
-                                        Tag="{x:Bind}"
-                                        ToolTipService.ToolTip="Search for game manually"
-                                        Visibility="{x:Bind SearchButtonVisibility, Mode=OneWay}">
-                                        <FontIcon
-                                            FontFamily="Segoe MDL2 Assets"
-                                            FontSize="14"
-                                            Glyph="&#xE721;" />
-                                    </Button>
+                                    <!--  Edit/Search button container - ensures alignment  -->
+                                    <Grid Width="32" Height="32">
+                                        <!--  Search button (for Unknown games)  -->
+                                        <Button
+                                            Width="32"
+                                            Height="32"
+                                            Click="SearchGameImage_Click"
+                                            Style="{StaticResource FluentIconButton}"
+                                            Tag="{x:Bind}"
+                                            ToolTipService.ToolTip="Search for game manually"
+                                            Visibility="{x:Bind SearchButtonVisibility, Mode=OneWay}">
+                                            <FontIcon
+                                                FontFamily="Segoe MDL2 Assets"
+                                                FontSize="14"
+                                                Glyph="&#xE721;" />
+                                        </Button>
 
-                                    <!--  Edit button  -->
-                                    <Button
-                                        Width="32"
-                                        Height="32"
-                                        Click="EditGameImage_Click"
-                                        IsEnabled="{x:Bind CanEditImage, Mode=OneWay}"
-                                        Style="{StaticResource FluentIconButton}"
-                                        Tag="{x:Bind}"
-                                        ToolTipService.ToolTip="Change artwork"
-                                        Visibility="{x:Bind EditButtonVisibility, Mode=OneWay}">
-                                        <FontIcon
-                                            FontFamily="Segoe MDL2 Assets"
-                                            FontSize="14"
-                                            Glyph="&#xE104;" />
-                                    </Button>
+                                        <!--  Edit button  -->
+                                        <Button
+                                            Width="32"
+                                            Height="32"
+                                            Click="EditGameImage_Click"
+                                            IsEnabled="{x:Bind CanEditImage, Mode=OneWay}"
+                                            Style="{StaticResource FluentIconButton}"
+                                            Tag="{x:Bind}"
+                                            ToolTipService.ToolTip="Change artwork"
+                                            Visibility="{x:Bind EditButtonVisibility, Mode=OneWay}">
+                                            <FontIcon
+                                                FontFamily="Segoe MDL2 Assets"
+                                                FontSize="14"
+                                                Glyph="&#xE104;" />
+                                        </Button>
+                                    </Grid>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>

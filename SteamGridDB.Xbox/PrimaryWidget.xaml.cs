@@ -17,6 +17,7 @@ using Windows.Web.Http;
 using SteamGridDB.Xbox.Models;
 using SteamGridDB.Xbox.Services.SteamGridDB;
 using SteamGridDB.Xbox.Services.SteamGridDB.Models;
+using Windows.Foundation.Metadata;
 
 namespace SteamGridDB.Xbox
 {
@@ -458,18 +459,20 @@ namespace SteamGridDB.Xbox
                 using (var httpClient = new HttpClient())
                 {
                     var response = await httpClient.GetAsync(new Uri(gridItem.Url));
+
                     if (!response.IsSuccessStatusCode)
                     {
                         GridPanelStatus.Text = "Failed to download image";
                         GridLoadingRing.IsActive = false;
+
                         return;
                     }
 
                     var imageBytes = await response.Content.ReadAsBufferAsync();
 
                     // Generate the filenames
-                    string imageFileName = $"{currentSelectedGame.Platform.ToString().ToLower()}_{currentSelectedGame.PlatformId}.png";
-                    string backupFileName = $"{currentSelectedGame.Platform.ToString().ToLower()}_{currentSelectedGame.PlatformId}.bak";
+                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId}.png";
+                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId}.bak";
 
                     // Create backup of ORIGINAL image ONLY if backup doesn't already exist
                     bool backupExists = false;
@@ -508,6 +511,22 @@ namespace SteamGridDB.Xbox
                         var imageFile = await currentGameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
                         await FileIO.WriteBufferAsync(imageFile, imageBytes);
 
+                        //// Set the file to read-only to prevent external overwrites - looks like this is not actually needed?
+                        //try
+                        //{
+                        //    // Set read-only attribute using Win32 file system
+                        //    string fullPath = imageFile.Path;
+                        //    System.IO.FileAttributes currentAttributes = System.IO.File.GetAttributes(fullPath);
+                        //    System.IO.File.SetAttributes(fullPath, currentAttributes | System.IO.FileAttributes.ReadOnly);
+
+                        //    System.Diagnostics.Debug.WriteLine($"Set {imageFileName} to read-only");
+                        //}
+                        //catch (Exception attrEx)
+                        //{
+                        //    // Log but don't fail if we can't set read-only
+                        //    System.Diagnostics.Debug.WriteLine($"Could not set read-only attribute: {attrEx.Message}");
+                        //}
+
                         // Reload the image in the UI
                         await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
                         {
@@ -537,8 +556,6 @@ namespace SteamGridDB.Xbox
                         System.Diagnostics.Debug.WriteLine($"Error saving image: {ex.Message}");
                     }
                 }
-
-                GridLoadingRing.IsActive = false;
             }
             catch (Exception ex)
             {
@@ -901,8 +918,28 @@ namespace SteamGridDB.Xbox
                 }
 
                 // Generate the filenames
-                string imageFileName = $"{game.Platform.ToString().ToLower()}_{game.PlatformId}.png";
-                string backupFileName = $"{game.Platform.ToString().ToLower()}_{game.PlatformId}.bak";
+                string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId}.png";
+                string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId}.bak";
+
+                //// Remove read-only attribute from current image if it exists - looks like this is not actually needed?
+                //try
+                //{
+                //    string currentImagePath = Path.Combine(gameFolder.Path, imageFileName);
+                //    if (System.IO.File.Exists(currentImagePath))
+                //    {
+                //        System.IO.FileAttributes currentAttributes = System.IO.File.GetAttributes(currentImagePath);
+                //        if ((currentAttributes & System.IO.FileAttributes.ReadOnly) == System.IO.FileAttributes.ReadOnly)
+                //        {
+                //            // Remove read-only flag
+                //            System.IO.File.SetAttributes(currentImagePath, currentAttributes & ~System.IO.FileAttributes.ReadOnly);
+                //            System.Diagnostics.Debug.WriteLine($"Removed read-only from {imageFileName}");
+                //        }
+                //    }
+                //}
+                //catch (Exception attrEx)
+                //{
+                //    System.Diagnostics.Debug.WriteLine($"Could not remove read-only attribute: {attrEx.Message}");
+                //}
 
                 // Delete current image if it exists
                 try
