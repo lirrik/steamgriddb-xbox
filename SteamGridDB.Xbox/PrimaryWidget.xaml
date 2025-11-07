@@ -3,149 +3,325 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="using:SteamGridDB.Xbox"
-    xmlns:models="using:SteamGridDB.Xbox.Models"
-    xmlns:converters="using:SteamGridDB.Xbox.Converters"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:SteamGridDB.Xbox.Models"
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Padding="10" Background="{ThemeResource SystemControlBackgroundAccentBrush}">
-            <TextBlock Text="Xbox Installed Games Library" 
-                FontSize="16" 
-                FontWeight="Bold" 
-                Foreground="White"/>
-        </StackPanel>
+        <!--  Main Content  -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <!-- Game entries list -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <Grid>
-                <!-- Instructions panel (shown when no games loaded) -->
-                <StackPanel x:Name="InstructionsPanel" 
-                    Padding="20"
-                    Visibility="Collapsed">
-                    <TextBlock Text="📁 Access Required" 
-                        FontSize="16" 
-                        FontWeight="Bold"
-                        Margin="0,0,0,10"/>
-                    <TextBlock TextWrapping="Wrap" 
-                        Margin="0,0,0,10">
-                        To access your game library, you need to grant file system permission:
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" 
-                        Margin="10,0,0,5">
-                        1. Open Windows Settings
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" 
-                        Margin="10,0,0,5">
-                        2. Go to Privacy &amp; Security &gt; File system
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" 
-                        Margin="10,0,0,5">
-                        3. Enable file system access for this app
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" 
-                        Margin="10,0,0,5">
-                        4. Click Refresh below
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" 
-                        Margin="0,10,0,0"
-                        Opacity="0.7">
-                        Expected folder: %LOCALAPPDATA%\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries
-                    </TextBlock>
-                </StackPanel>
+            <!--  Header  -->
+            <StackPanel
+                Grid.Row="0"
+                Padding="10"
+                Background="{ThemeResource SystemControlBackgroundAccentBrush}">
+                <TextBlock
+                    FontSize="16"
+                    FontWeight="Bold"
+                    Foreground="White"
+                    Text="Xbox Installed Games Library" />
+            </StackPanel>
 
-                <!-- Game entries ListView -->
-                <ListView x:Name="GameEntriesListView" 
-                    ItemsSource="{x:Bind GameEntries}"
-                    SelectionMode="None"
-                    IsItemClickEnabled="False">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:GameEntry">
-                            <Grid Padding="8" Margin="4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+            <!--  Game entries list  -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Grid>
+                    <!--  Instructions panel (shown when no games loaded)  -->
+                    <StackPanel
+                        x:Name="InstructionsPanel"
+                        Padding="20"
+                        Visibility="Collapsed">
+                        <TextBlock
+                            Margin="0,0,0,10"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="📁 Access Required" />
+                        <TextBlock Margin="0,0,0,10" TextWrapping="Wrap">
+                            To access your game library, you need to grant file system permission:
+                        </TextBlock>
+                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
+                            1. Open Windows Settings
+                        </TextBlock>
+                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
+                            2. Go to Privacy &amp; Security &gt; File system
+                        </TextBlock>
+                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
+                            3. Enable file system access for this app
+                        </TextBlock>
+                        <TextBlock Margin="10,0,0,5" TextWrapping="Wrap">
+                            4. Click Refresh below
+                        </TextBlock>
+                        <TextBlock
+                            Margin="0,10,0,0"
+                            Opacity="0.7"
+                            TextWrapping="Wrap">
+                            Expected folder: %LOCALAPPDATA%\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries
+                        </TextBlock>
+                    </StackPanel>
 
-                                <!-- Game image -->
-                                <Border Grid.Column="0" 
-                                    Width="50" 
-                                    Height="50" 
-                                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                    CornerRadius="4">
-                                    <Grid>
-                                        <Image Source="{x:Bind Image, Mode=OneWay}" 
-                                            Stretch="UniformToFill"
-                                            Visibility="{x:Bind ImageVisibility, Mode=OneWay}"/>
-                                        <TextBlock Text="?" 
-                                            VerticalAlignment="Center" 
-                                            HorizontalAlignment="Center"
-                                            FontSize="20"
-                                            Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}"/>
-                                    </Grid>
-                                </Border>
+                    <!--  Game entries ListView  -->
+                    <ListView
+                        x:Name="GameEntriesListView"
+                        IsItemClickEnabled="False"
+                        ItemsSource="{x:Bind GameEntries}"
+                        SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:GameEntry">
+                                <Grid Margin="4" Padding="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Game info -->
-                                <StackPanel Grid.Column="1" 
-                                            Margin="10,0,0,0" 
-                                            VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind ImageName, Mode=OneWay}" 
-                                        FontWeight="SemiBold" 
-                                        FontSize="14"
-                                        TextWrapping="NoWrap"
-                                        TextTrimming="CharacterEllipsis"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                        <TextBlock Text="{x:Bind Platform, Mode=OneWay}" 
-                                            FontSize="11" 
-                                            Opacity="0.7"
-                                            TextWrapping="NoWrap"
-                                            TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text=" • " 
-                                            FontSize="11" 
-                                            Opacity="0.7"
-                                            Margin="4,0"/>
-                                        <TextBlock Text="{x:Bind PlatformId, Mode=OneWay}"
-                                            FontSize="11" 
-                                            Opacity="0.7"
-                                            TextWrapping="NoWrap"
-                                            TextTrimming="CharacterEllipsis"/>
+                                    <!--  Game image  -->
+                                    <Border
+                                        Grid.Column="0"
+                                        Width="50"
+                                        Height="50"
+                                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                        CornerRadius="4">
+                                        <Grid>
+                                            <Image
+                                                Source="{x:Bind Image, Mode=OneWay}"
+                                                Stretch="UniformToFill"
+                                                Visibility="{x:Bind ImageVisibility, Mode=OneWay}" />
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontSize="20"
+                                                Text="?"
+                                                Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <!--  Game info  -->
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        Margin="10,0,0,0"
+                                        VerticalAlignment="Center">
+                                        <TextBlock
+                                            FontSize="14"
+                                            FontWeight="SemiBold"
+                                            Text="{x:Bind ImageFileName, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis"
+                                            TextWrapping="NoWrap" />
+                                        <StackPanel Margin="0,2,0,0" Orientation="Horizontal">
+                                            <TextBlock
+                                                FontSize="11"
+                                                Opacity="0.7"
+                                                Text="{x:Bind Platform, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis"
+                                                TextWrapping="NoWrap" />
+                                            <TextBlock
+                                                Margin="4,0"
+                                                FontSize="11"
+                                                Opacity="0.7"
+                                                Text=" • " />
+                                            <TextBlock
+                                                FontSize="11"
+                                                Opacity="0.7"
+                                                Text="{x:Bind PlatformId, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis"
+                                                TextWrapping="NoWrap" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            FontSize="10"
+                                            Opacity="0.5"
+                                            TextTrimming="CharacterEllipsis"
+                                            TextWrapping="NoWrap">
+                                            <Run Text="Added: " />
+                                            <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}" />
+                                        </TextBlock>
                                     </StackPanel>
-                                    <TextBlock FontSize="10" 
-                                        Opacity="0.5"
-                                        TextWrapping="NoWrap"
-                                        TextTrimming="CharacterEllipsis">
-                                        <Run Text="Added: "/>
-                                        <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}"/>
-                                    </TextBlock>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </Grid>
-        </ScrollViewer>
 
-        <!-- Status bar -->
-        <StackPanel Grid.Row="2" 
-                    Padding="10" 
-                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
-            <TextBlock x:Name="StatusText" 
-                Text="Loading..." 
-                FontSize="12" 
-                Opacity="0.7"/>
-            <Button x:Name="refreshButton" 
-                    Click="RefreshButton_Click" 
-                    Margin="0,5,0,0">
-                Refresh
-            </Button>
-        </StackPanel>
+                                    <!--  Buttons  -->
+                                    <StackPanel
+                                        Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <!--  Edit button  -->
+                                        <Button
+                                            Width="40"
+                                            Height="40"
+                                            Margin="5"
+                                            Padding="0"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            Click="EditGameImage_Click"
+                                            Content="›"
+                                            FontSize="25"
+                                            Tag="{x:Bind}"
+                                            ToolTipService.ToolTip="Search for a new image" />
+
+                                        <!--  Restore button (visible only if backup exists)  -->
+                                        <Button
+                                            Width="40"
+                                            Height="40"
+                                            Margin="5"
+                                            Padding="0"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            Click="RestoreBackup_Click"
+                                            Content="↶"
+                                            FontSize="25"
+                                            Tag="{x:Bind}"
+                                            ToolTipService.ToolTip="Restore backup"
+                                            Visibility="{x:Bind RestoreButtonVisibility, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </ScrollViewer>
+
+            <!--  Status bar  -->
+            <StackPanel
+                Grid.Row="2"
+                Padding="10"
+                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                <TextBlock
+                    x:Name="StatusText"
+                    FontSize="12"
+                    Opacity="0.7"
+                    Text="Loading..." />
+                <Button
+                    x:Name="refreshButton"
+                    Margin="0,5,0,0"
+                    Click="RefreshButton_Click">
+                    Refresh
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!--  Grid Selection Panel (Slide-out)  -->
+        <Grid
+            x:Name="GridSelectionPanel"
+            Grid.Column="1"
+            Width="300"
+            Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}"
+            BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+            BorderThickness="1,0,0,0"
+            RenderTransformOrigin="0.5,0.5"
+            Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="GridPanelTransform" X="300" />
+            </Grid.RenderTransform>
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Panel Header  -->
+            <Grid
+                Grid.Row="0"
+                Padding="10"
+                Background="{ThemeResource SystemControlBackgroundAccentBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Foreground="White"
+                    Text="Select Grid Image" />
+
+                <Button
+                    Grid.Column="1"
+                    Width="32"
+                    Height="32"
+                    Padding="0"
+                    Click="CloseGridPanel_Click"
+                    Content="✕"
+                    FontSize="16" />
+            </Grid>
+
+            <!--  Grid Images List  -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Grid>
+                    <StackPanel x:Name="GridImagesContainer" Padding="10">
+                        <!--  Grid images will be added here dynamically  -->
+                        <GridView
+                            x:Name="GridImagesView"
+                            IsItemClickEnabled="True"
+                            ItemClick="GridImage_Click"
+                            SelectionMode="None">
+                            <GridView.ItemTemplate>
+                                <DataTemplate x:DataType="models:GridImageItem">
+                                    <Grid Width="120" Margin="5">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="120" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <Border
+                                            Grid.Row="0"
+                                            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                            CornerRadius="4">
+                                            <Image Source="{x:Bind ThumbUrl, Mode=OneWay}" Stretch="UniformToFill" />
+                                        </Border>
+
+                                        <!--<StackPanel Grid.Row="1" Margin="0,5,0,0">
+                                            <TextBlock
+                                                FontSize="10"
+                                                Text="{x:Bind Style, Mode=OneWay}"
+                                                TextAlignment="Center"
+                                                TextTrimming="CharacterEllipsis"
+                                                TextWrapping="NoWrap" />
+                                            <TextBlock
+                                                FontSize="9"
+                                                Opacity="0.7"
+                                                TextAlignment="Center">
+                                                <Run Text="Score: " />
+                                                <Run Text="{x:Bind Score, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>-->
+                                    </Grid>
+                                </DataTemplate>
+                            </GridView.ItemTemplate>
+                        </GridView>
+                    </StackPanel>
+
+                    <!--  Loading indicator - overlaid on top, doesn't affect layout  -->
+                    <ProgressRing
+                        x:Name="GridLoadingRing"
+                        Width="40"
+                        Height="40"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsActive="False" />
+                </Grid>
+            </ScrollViewer>
+
+            <!--  Panel Status  -->
+            <Border
+                x:Name="GridPanelStatusBorder"
+                Grid.Row="2"
+                Padding="10"
+                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                <TextBlock
+                    x:Name="GridPanelStatus"
+                    FontSize="11"
+                    Opacity="0.7"
+                    TextWrapping="Wrap" />
+            </Border>
+        </Grid>
     </Grid>
 </Page>

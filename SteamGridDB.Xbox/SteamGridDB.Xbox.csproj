@@ -103,6 +103,7 @@
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="Converters\InverseBooleanToVisibilityConverter.cs" />
+    <Compile Include="Models\GridImageItem.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>

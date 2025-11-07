@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
@@ -21,7 +22,7 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
     {
         private readonly HttpClient httpClient;
         private readonly string baseUrl = "https://www.steamgriddb.com/api/v2";
-        private readonly TimeSpan timeout = TimeSpan.FromSeconds(30);
+        private readonly TimeSpan timeout;
         private bool disposed = false;
 
         /// <summary>
@@ -109,10 +110,9 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
         /// <param name="platformId">Platform-specific game ID.</param>
         /// <param name="dimensions">Preferred dimensions (e.g., new[] { "600x900", "920x430" }). Use null for all sizes.</param>
         /// <param name="styles">Styles to filter by (e.g., new[] { "alternate", "white_logo" }). Use null for all styles.</param>
-        /// <param name="squareOnly">If true, only returns square images (width == height).</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>List of available grids.</returns>
-        public async Task<List<SteamGridDbGrid>> GetGridsByPlatformIdAsync(string platform, string platformId, string[] dimensions = null, string[] styles = null, bool squareOnly = false, CancellationToken cancellationToken = default)
+        public async Task<List<SteamGridDbGrid>> GetGridsByPlatformIdAsync(string platform, string platformId, string[] dimensions = null, string[] styles = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(platform))
             {
@@ -129,20 +129,14 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
 
             if (dimensions != null && dimensions.Length > 0)
             {
-                // API expects: ?dimensions[]=600x900&dimensions[]=920x430
-                foreach (var dimension in dimensions)
-                {
-                    queryParams.Add($"dimensions[]={Uri.EscapeDataString(dimension)}");
-                }
+                // API expects comma-separated: ?dimensions=600x900,920x430
+                queryParams.Add($"dimensions={string.Join(",", dimensions.Select(d => Uri.EscapeDataString(d)))}");
             }
 
             if (styles != null && styles.Length > 0)
             {
-                // API expects: ?styles[]=alternate&styles[]=white_logo
-                foreach (var style in styles)
-                {
-                    queryParams.Add($"styles[]={Uri.EscapeDataString(style)}");
-                }
+                // API expects comma-separated: ?styles=alternate,white_logo
+                queryParams.Add($"styles={string.Join(",", styles.Select(s => Uri.EscapeDataString(s)))}");
             }
 
             if (queryParams.Count > 0)
@@ -155,15 +149,7 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
 
             if (response != null && response.Success && response.Data != null)
             {
-                var grids = response.Data;
-
-                // Filter for square images if requested
-                if (squareOnly)
-                {
-                    grids = FilterSquareImages(grids);
-                }
-
-                return grids;
+                return response.Data;
             }
 
             return new List<SteamGridDbGrid>();
@@ -179,7 +165,7 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
         /// <returns>List of square grids only.</returns>
         public async Task<List<SteamGridDbGrid>> GetSquareGridsByPlatformIdAsync(string platform, string platformId, string[] styles = null, CancellationToken cancellationToken = default)
         {
-            return await GetGridsByPlatformIdAsync(platform, platformId, null, styles, squareOnly: true, cancellationToken);
+            return await GetGridsByPlatformIdAsync(platform, platformId, new[] { "512x512", "1024x1024" }, styles, cancellationToken);
         }
 
         /// <summary>
@@ -208,18 +194,12 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
 
             if (dimensions != null && dimensions.Length > 0)
             {
-                foreach (var dimension in dimensions)
-                {
-                    queryParams.Add($"dimensions[]={Uri.EscapeDataString(dimension)}");
-                }
+                queryParams.Add($"dimensions={string.Join(",", dimensions.Select(d => Uri.EscapeDataString(d)))}");
             }
 
             if (styles != null && styles.Length > 0)
             {
-                foreach (var style in styles)
-                {
-                    queryParams.Add($"styles[]={Uri.EscapeDataString(style)}");
-                }
+                queryParams.Add($"styles={string.Join(",", styles.Select(s => Uri.EscapeDataString(s)))}");
             }
 
             if (queryParams.Count > 0)
@@ -263,10 +243,7 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
 
             if (styles != null && styles.Length > 0)
             {
-                foreach (var style in styles)
-                {
-                    queryParams.Add($"styles[]={Uri.EscapeDataString(style)}");
-                }
+                queryParams.Add($"styles={string.Join(",", styles.Select(s => Uri.EscapeDataString(s)))}");
             }
 
             if (queryParams.Count > 0)
@@ -292,10 +269,9 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
         /// <param name="platformId">Platform-specific game ID.</param>
         /// <param name="dimensions">Preferred dimensions (e.g., new[] { "32", "64", "128" }). Use null for all sizes.</param>
         /// <param name="styles">Styles to filter by (e.g., new[] { "official", "custom" }). Use null for all styles.</param>
-        /// <param name="squareOnly">If true, only returns square icons (width == height). Icons are typically square.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>List of available icons.</returns>
-        public async Task<List<SteamGridDbGrid>> GetIconsByPlatformIdAsync(string platform, string platformId, string[] dimensions = null, string[] styles = null, bool squareOnly = false, CancellationToken cancellationToken = default)
+        public async Task<List<SteamGridDbGrid>> GetIconsByPlatformIdAsync(string platform, string platformId, string[] dimensions = null, string[] styles = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(platform))
             {
@@ -312,18 +288,12 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
 
             if (dimensions != null && dimensions.Length > 0)
             {
-                foreach (var dimension in dimensions)
-                {
-                    queryParams.Add($"dimensions[]={Uri.EscapeDataString(dimension)}");
-                }
+                queryParams.Add($"dimensions={string.Join(",", dimensions.Select(d => Uri.EscapeDataString(d)))}");
             }
 
             if (styles != null && styles.Length > 0)
             {
-                foreach (var style in styles)
-                {
-                    queryParams.Add($"styles[]={Uri.EscapeDataString(style)}");
-                }
+                queryParams.Add($"styles={string.Join(",", styles.Select(s => Uri.EscapeDataString(s)))}");
             }
 
             if (queryParams.Count > 0)
@@ -336,15 +306,7 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
 
             if (response != null && response.Success && response.Data != null)
             {
-                var icons = response.Data;
-
-                // Filter for square images if requested (most icons are square anyway)
-                if (squareOnly)
-                {
-                    icons = FilterSquareImages(icons);
-                }
-
-                return icons;
+                return response.Data;
             }
 
             return new List<SteamGridDbGrid>();
@@ -362,68 +324,7 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
         /// <returns>List of square icons only.</returns>
         public async Task<List<SteamGridDbGrid>> GetSquareIconsByPlatformIdAsync(string platform, string platformId, string[] dimensions = null, string[] styles = null, CancellationToken cancellationToken = default)
         {
-            return await GetIconsByPlatformIdAsync(platform, platformId, dimensions, styles, squareOnly: true, cancellationToken);
-        }
-
-        /// <summary>
-        /// Filters grids to only include square images (width == height).
-        /// Note: This parses dimensions from the URL since API doesn't return dimensions directly.
-        /// </summary>
-        private List<SteamGridDbGrid> FilterSquareImages(List<SteamGridDbGrid> grids)
-        {
-            var squareGrids = new List<SteamGridDbGrid>();
-
-            foreach (var grid in grids)
-            {
-                if (IsSquareImage(grid.Url))
-                {
-                    squareGrids.Add(grid);
-                }
-            }
-
-            return squareGrids;
-        }
-
-        /// <summary>
-        /// Check if an image URL represents a square image.
-        /// Parses dimensions from URL pattern (e.g., "/grid/512x512/...").
-        /// </summary>
-        private bool IsSquareImage(string url)
-        {
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                return false;
-            }
-
-            try
-            {
-                // URL pattern: https://cdn2.steamgriddb.com/grid/512x512/abc123.png
-                // or: https://cdn2.steamgriddb.com/thumb/512x512/abc123.png
-                var parts = url.Split('/');
-
-                // Find the dimensions part (e.g., "512x512")
-                foreach (var part in parts)
-                {
-                    if (part.Contains("x"))
-                    {
-                        var dimensions = part.Split('x');
-
-                        if (dimensions.Length == 2)
-                        {
-                            if (int.TryParse(dimensions[0], out int width) && int.TryParse(dimensions[1], out int height))
-                            {
-                                return width == height;
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // If parsing fails, assume not square
-            }
-
-            return false;
+            return await GetIconsByPlatformIdAsync(platform, platformId, new[] { "128x128", "256x256", "512x512", "1024x1024" }, styles, cancellationToken);
         }
 
         /// <summary>

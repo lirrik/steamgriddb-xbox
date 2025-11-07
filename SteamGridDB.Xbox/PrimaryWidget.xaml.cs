@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Windows.Data.Json;
@@ -8,14 +9,17 @@ using Windows.Storage;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
+using Windows.Web.Http;
 
 using SteamGridDB.Xbox.Models;
+using SteamGridDB.Xbox.Services.SteamGridDB;
 
 namespace SteamGridDB.Xbox
 {
     /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
+    /// Primary widget page that loads and displays Xbox app third-party games.
     /// </summary>
     public sealed partial class PrimaryWidget : Page
     {
@@ -23,6 +27,10 @@ namespace SteamGridDB.Xbox
         {
             get; set;
         }
+
+        private GameEntry currentSelectedGame;
+        private StorageFolder currentGameFolder;
+        private string SteamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
 
         public PrimaryWidget()
         {
@@ -167,7 +175,7 @@ namespace SteamGridDB.Xbox
 
                                 // Get the ID from the "id" property (not from the key)
                                 string entryId = entryObject.GetNamedString("id");
-      
+
                                 // Parse addedDate - it's stored as a string in JSON
                                 string addedDateString = entryObject.GetNamedString("addedDate", "0");
                                 long timestamp = 0;
@@ -179,9 +187,22 @@ namespace SteamGridDB.Xbox
 
                                 // Convert ID to image filename (replace : with _)
                                 string imageFileName = entryId.Replace(":", "_") + ".png";
+                                string backupFileName = entryId.Replace(":", "_") + ".bak";
                                 string entryTitle = imageFileName;
 
                                 BitmapImage image = null;
+                                bool hasBackup = false;
+
+                                // Check if backup exists
+                                try
+                                {
+                                    await folder.GetFileAsync(backupFileName);
+                                    hasBackup = true;
+                                }
+                                catch (FileNotFoundException)
+                                {
+                                    // Backup doesn't exist, that's okay
+                                }
 
                                 try
                                 {
@@ -201,11 +222,12 @@ namespace SteamGridDB.Xbox
                                     GameEntries.Add(new GameEntry
                                     {
                                         PlatformId = entryId.Substring(entryId.IndexOf(':') + 1),
-                                        ImageName = entryTitle,
+                                        ImageFileName = entryTitle,
                                         Platform = GamePlatformHelper.FromXboxDirectory(directoryName),
                                         AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
                                         Directory = directoryName,
-                                        Image = image
+                                        Image = image,
+                                        HasBackup = hasBackup
                                     });
                                 });
                             }
@@ -241,6 +263,388 @@ namespace SteamGridDB.Xbox
         {
             GameEntries.Clear();
             await LoadGameEntriesAsync();
+        }
+
+        /// <summary>
+        /// Handle edit button click to show grid selection panel
+        /// </summary>
+        private async void EditGameImage_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button?.Tag is GameEntry gameEntry)
+            {
+                currentSelectedGame = gameEntry;
+
+                // Find the folder for this game
+                await LoadGridSelectionPanelAsync(gameEntry);
+            }
+        }
+
+        /// <summary>
+        /// Load and display available grids for the selected game
+        /// </summary>
+        private async Task LoadGridSelectionPanelAsync(GameEntry game)
+        {
+            try
+            {
+                // Show panel with animation
+                await ShowGridPanelAsync();
+
+                // Show loading indicator
+                GridLoadingRing.IsActive = true;
+                GridImagesView.Items.Clear();
+                GridPanelStatus.Text = $"Loading grids for {game.ImageFileName ?? game.PlatformId}...";
+
+                // Get the platform string for SteamGridDB API
+                string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
+                if (string.IsNullOrEmpty(platformString))
+                {
+                    GridPanelStatus.Text = "Unsupported platform";
+                    GridLoadingRing.IsActive = false;
+                    return;
+                }
+
+                // Find the game folder
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string thirdPartyLibrariesPath = Path.Combine(userProfile,
+                   @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
+                string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
+
+                try
+                {
+                    currentGameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
+                }
+                catch
+                {
+                    GridPanelStatus.Text = "Could not access game folder";
+                    GridLoadingRing.IsActive = false;
+                    return;
+                }
+
+                // Fetch grids from SteamGridDB
+                using (var client = new SteamGridDbClient(SteamGridDbApiKey))
+                {
+                    var grids = await client.GetSquareGridsByPlatformIdAsync(
+                 platformString,
+               game.PlatformId);
+
+                    if (grids == null || grids.Count == 0)
+                    {
+                        GridPanelStatus.Text = "No grids found for this game";
+                        GridLoadingRing.IsActive = false;
+                        return;
+                    }
+
+                    // Sort by score (highest first)
+                    var sortedGrids = grids.OrderByDescending(g => g.Score).ToList();
+
+                    // Add items to grid view
+                    foreach (var grid in sortedGrids)
+                    {
+                        GridImagesView.Items.Add(new GridImageItem
+                        {
+                            Id = grid.Id,
+                            Url = grid.Url,
+                            ThumbUrl = grid.Thumb ?? grid.Url,
+                            Style = grid.Style ?? "default",
+                            Score = grid.Score
+                        });
+                    }
+
+                    GridPanelStatus.Text = $"Found {grids.Count} grid(s)";
+                }
+
+                GridLoadingRing.IsActive = false;
+            }
+            catch (Exception ex)
+            {
+                GridPanelStatus.Text = $"Error: {ex.Message}";
+                GridLoadingRing.IsActive = false;
+                System.Diagnostics.Debug.WriteLine($"Error loading grids: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle grid image selection
+        /// </summary>
+        private async void GridImage_Click(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is GridImageItem gridItem && currentSelectedGame != null)
+            {
+                await DownloadAndReplaceImageAsync(gridItem);
+            }
+        }
+
+        /// <summary>
+        /// Download selected grid and replace the game's image file
+        /// </summary>
+        private async Task DownloadAndReplaceImageAsync(GridImageItem gridItem)
+        {
+            try
+            {
+                GridPanelStatus.Text = "Downloading image...";
+                GridLoadingRing.IsActive = true;
+
+                // Download the image
+                using (var httpClient = new HttpClient())
+                {
+                    var response = await httpClient.GetAsync(new Uri(gridItem.Url));
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        GridPanelStatus.Text = "Failed to download image";
+                        GridLoadingRing.IsActive = false;
+                        return;
+                    }
+
+                    var imageBytes = await response.Content.ReadAsBufferAsync();
+
+                    // Generate the filenames
+                    string imageFileName = $"{currentSelectedGame.Platform.ToString().ToLower()}_{currentSelectedGame.PlatformId}.png";
+                    string backupFileName = $"{currentSelectedGame.Platform.ToString().ToLower()}_{currentSelectedGame.PlatformId}.bak";
+
+                    // Create backup of ORIGINAL image ONLY if backup doesn't already exist
+                    bool backupExists = false;
+
+                    try
+                    {
+                        await currentGameFolder.GetFileAsync(backupFileName);
+                        backupExists = true;
+                        GridPanelStatus.Text = "Original backup exists, downloading new image...";
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        // Backup doesn't exist, create it from current image
+                        try
+                        {
+                            var existingImageFile = await currentGameFolder.GetFileAsync(imageFileName);
+
+                            // Backup the ORIGINAL image by copying (not renaming) to preserve it
+                            var backupFile = await currentGameFolder.CreateFileAsync(backupFileName, CreationCollisionOption.ReplaceExisting);
+                            backupExists = true;
+                            var existingBuffer = await FileIO.ReadBufferAsync(existingImageFile);
+                            await FileIO.WriteBufferAsync(backupFile, existingBuffer);
+
+                            GridPanelStatus.Text = "Original backed up, downloading new image...";
+                        }
+                        catch (FileNotFoundException)
+                        {
+                            // No existing image to backup
+                            GridPanelStatus.Text = "Downloading new image...";
+                        }
+                    }
+
+                    // Save the new image (replaces current)
+                    try
+                    {
+                        var imageFile = await currentGameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
+                        await FileIO.WriteBufferAsync(imageFile, imageBytes);
+
+                        // Reload the image in the UI
+                        await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                        {
+                            var newImage = new BitmapImage();
+                            using (var stream = await imageFile.OpenReadAsync())
+                            {
+                                await newImage.SetSourceAsync(stream);
+                            }
+                            currentSelectedGame.Image = newImage;
+                            currentSelectedGame.ImageFileName = imageFileName;
+                            currentSelectedGame.HasBackup = backupExists; // Mark that backup exists (original preserved)
+
+                            StatusText.Text = $"Image {imageFileName} updated successfully!";
+                        });
+
+                        GridPanelStatus.Text = "Image updated successfully!";
+
+                        // Close panel after short delay
+                        await Task.Delay(1000);
+                        await HideGridPanelAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        GridPanelStatus.Text = $"Error saving image: {ex.Message}";
+                        System.Diagnostics.Debug.WriteLine($"Error saving image: {ex.Message}");
+                    }
+                }
+
+                GridLoadingRing.IsActive = false;
+            }
+            catch (Exception ex)
+            {
+                GridPanelStatus.Text = $"Error: {ex.Message}";
+                GridLoadingRing.IsActive = false;
+                System.Diagnostics.Debug.WriteLine($"Error downloading image: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Show the grid selection panel with animation
+        /// </summary>
+        private async Task ShowGridPanelAsync()
+        {
+            GridSelectionPanel.Visibility = Visibility.Visible;
+
+            var animation = new DoubleAnimation
+            {
+                From = 300,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(300),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(animation);
+            Storyboard.SetTarget(animation, GridPanelTransform);
+            Storyboard.SetTargetProperty(animation, "X");
+
+            storyboard.Begin();
+            await Task.Delay(300);
+        }
+
+        /// <summary>
+        /// Hide the grid selection panel with animation
+        /// </summary>
+        private async Task HideGridPanelAsync()
+        {
+            var animation = new DoubleAnimation
+            {
+                From = 0,
+                To = 300,
+                Duration = TimeSpan.FromMilliseconds(300),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(animation);
+            Storyboard.SetTarget(animation, GridPanelTransform);
+            Storyboard.SetTargetProperty(animation, "X");
+
+            storyboard.Begin();
+            await Task.Delay(300);
+
+            GridSelectionPanel.Visibility = Visibility.Collapsed;
+            GridImagesView.Items.Clear();
+            currentSelectedGame = null;
+            currentGameFolder = null;
+        }
+
+        /// <summary>
+        /// Handle close button click
+        /// </summary>
+        private async void CloseGridPanel_Click(object sender, RoutedEventArgs e)
+        {
+            await HideGridPanelAsync();
+        }
+
+        /// <summary>
+        /// Handle restore backup button click
+        /// </summary>
+        private async void RestoreBackup_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button?.Tag is GameEntry gameEntry)
+            {
+                await RestoreBackupAsync(gameEntry);
+            }
+        }
+
+        /// <summary>
+        /// Restore image from backup file
+        /// </summary>
+        private async Task RestoreBackupAsync(GameEntry game)
+        {
+            try
+            {
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = $"Restoring backup for {game.ImageFileName ?? game.PlatformId}...";
+                });
+
+                // Find the game folder
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string thirdPartyLibrariesPath = Path.Combine(userProfile,
+                  @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
+                string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
+
+                StorageFolder gameFolder = null;
+                try
+                {
+                    gameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
+                }
+                catch
+                {
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        StatusText.Text = "Could not access game folder";
+                    });
+
+                    return;
+                }
+
+                // Generate the filenames
+                string imageFileName = $"{game.Platform.ToString().ToLower()}_{game.PlatformId}.png";
+                string backupFileName = $"{game.Platform.ToString().ToLower()}_{game.PlatformId}.bak";
+
+                // Delete current image if it exists
+                try
+                {
+                    var currentImageFile = await gameFolder.GetFileAsync(imageFileName);
+                    await currentImageFile.DeleteAsync();
+                }
+                catch (FileNotFoundException)
+                {
+                    // Current image doesn't exist, that's okay
+                }
+
+                // Rename backup to become the main image
+                try
+                {
+                    var backupFile = await gameFolder.GetFileAsync(backupFileName);
+                    await backupFile.RenameAsync(imageFileName, NameCollisionOption.ReplaceExisting);
+
+                    // Reload the image in the UI
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                    {
+                        var restoredImage = new BitmapImage();
+                        var imageFile = await gameFolder.GetFileAsync(imageFileName);
+
+                        using (var stream = await imageFile.OpenReadAsync())
+                        {
+                            await restoredImage.SetSourceAsync(stream);
+                        }
+
+                        game.Image = restoredImage;
+                        game.ImageFileName = imageFileName;
+                        game.HasBackup = false; // Backup no longer exists
+
+                        StatusText.Text = $"Backup restored for {game.ImageFileName ?? game.PlatformId}";
+                    });
+                }
+                catch (FileNotFoundException)
+                {
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        StatusText.Text = "Backup file not found";
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        StatusText.Text = $"Error restoring backup: {ex.Message}";
+                    });
+                    System.Diagnostics.Debug.WriteLine($"Error restoring backup: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = $"Error: {ex.Message}";
+                });
+
+                System.Diagnostics.Debug.WriteLine($"Error in RestoreBackupAsync: {ex.Message}");
+            }
         }
     }
 }

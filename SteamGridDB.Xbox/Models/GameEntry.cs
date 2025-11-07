@@ -13,8 +13,9 @@ namespace SteamGridDB.Xbox.Models
         private string directory;
         private GamePlatform platform;
         private DateTime addedDate;
-        private string imageName;
+        private string imageFileName;
         private BitmapImage image;
+        private bool hasBackup;
 
         public string PlatformId
         {
@@ -68,21 +69,38 @@ namespace SteamGridDB.Xbox.Models
             }
         }
 
-        public string AddedDateFormatted => AddedDate.ToString("MM/dd/yyyy HH:mm:ss");
+        public string AddedDateFormatted => AddedDate.ToString();
 
-        public string ImageName
+        public string ImageFileName
         {
-            get => imageName;
+            get => imageFileName;
             set
             {
-                if (imageName != value)
+                if (imageFileName != value)
                 {
-                    imageName = value;
+                    imageFileName = value;
                     OnPropertyChanged();
                 }
             }
         }
 
+        // TODO: Resolve game name from API
+
+        public bool HasBackup
+        {
+            get => hasBackup;
+            set
+            {
+                if (hasBackup != value)
+                {
+                    hasBackup = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(RestoreButtonVisibility));
+                }
+            }
+        }
+
+        public Visibility RestoreButtonVisibility => HasBackup ? Visibility.Visible : Visibility.Collapsed;
 
         public BitmapImage Image
         {
