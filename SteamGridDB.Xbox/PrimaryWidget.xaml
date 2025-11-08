@@ -393,8 +393,8 @@
                             <GridView.ItemTemplate>
                                 <DataTemplate x:DataType="models:GridImageItem">
                                     <Grid
-                                        Width="140"
-                                        Height="140"
+                                        Width="128"
+                                        Height="128"
                                         Background="#2D2D2D"
                                         CornerRadius="6">
                                         <Grid.Clip>

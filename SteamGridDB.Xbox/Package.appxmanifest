@@ -9,15 +9,15 @@
   IgnorableNamespaces="uap uap3 mp rescap">
 
   <Identity
-    Name="KD.SteamGridDB.Xbox"
-    Publisher="CN=kirba"
+    Name="KDerevianko.SteamGridDBforXbox"
+    Publisher="CN=3A3A4DF3-61EC-44B3-8236-B38DEB2BFA98"
     Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="8a54c81a-eb28-4055-87b7-8c1d07114f7c" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="556a41b4-fae4-4e6f-925e-cd8945b576d5" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>SteamGridDB for Xbox</DisplayName>
-    <PublisherDisplayName>Kyrylo Derevianko</PublisherDisplayName>
+    <PublisherDisplayName>K Derevianko</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -58,8 +58,8 @@
                   <Size>
                     <Height>300</Height>
                     <Width>400</Width>
-                    <MinHeight>150</MinHeight>
-                    <MinWidth>200</MinWidth>
+                    <MinHeight>600</MinHeight>
+                    <MinWidth>464</MinWidth>
                   </Size>
                   <ResizeSupported>
                     <Horizontal>true</Horizontal>
