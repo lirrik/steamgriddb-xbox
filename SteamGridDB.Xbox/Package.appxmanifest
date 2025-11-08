@@ -56,8 +56,8 @@
                 <Window>
                   <AllowForegroundTransparency>true</AllowForegroundTransparency>
                   <Size>
-                    <Height>300</Height>
-                    <Width>400</Width>
+                    <Height>600</Height>
+                    <Width>600</Width>
                     <MinHeight>600</MinHeight>
                     <MinWidth>464</MinWidth>
                   </Size>

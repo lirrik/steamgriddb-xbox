@@ -380,7 +380,64 @@ namespace SteamGridDB.Xbox.Services.SteamGridDB
         /// <returns>List of square icons only.</returns>
         public async Task<List<SteamGridDbGrid>> GetSquareIconsByPlatformIdAsync(string platform, string platformId, string[] dimensions = null, string[] styles = null, CancellationToken cancellationToken = default)
         {
-            return await GetIconsByPlatformIdAsync(platform, platformId, new[] { "128x128", "256x256", "512x512", "1024x1024" }, styles, cancellationToken);
+            return await GetIconsByPlatformIdAsync(platform, platformId, new[] { "128", "256", "512", "1024" }, styles, cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets icons for a game by SteamGridDB game ID.
+        /// </summary>
+        /// <param name="gameId">SteamGridDB game ID.</param>
+        /// <param name="dimensions">Preferred dimensions (e.g., new[] { "32", "64", "128" }). Use null for all sizes.</param>
+        /// <param name="styles">Styles to filter by (e.g., new[] { "official", "custom" }). Use null for all styles.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>List of available icons.</returns>
+        public async Task<List<SteamGridDbGrid>> GetIconsByGameIdAsync(int gameId, string[] dimensions = null, string[] styles = null, CancellationToken cancellationToken = default)
+        {
+            if (gameId <= 0)
+            {
+                throw new ArgumentException("Game ID must be greater than 0", nameof(gameId));
+            }
+
+            var urlBuilder = new StringBuilder($"{baseUrl}/icons/game/{gameId}");
+            var queryParams = new List<string>();
+
+            if (dimensions != null && dimensions.Length > 0)
+            {
+                queryParams.Add($"dimensions={string.Join(",", dimensions.Select(d => Uri.EscapeDataString(d)))}");
+            }
+
+            if (styles != null && styles.Length > 0)
+            {
+                queryParams.Add($"styles={string.Join(",", styles.Select(s => Uri.EscapeDataString(s)))}");
+            }
+
+            if (queryParams.Count > 0)
+            {
+                urlBuilder.Append("?");
+                urlBuilder.Append(string.Join("&", queryParams));
+            }
+
+            var response = await GetAsync<SteamGridDbResponse<List<SteamGridDbGrid>>>(urlBuilder.ToString(), cancellationToken);
+
+            if (response != null && response.Success && response.Data != null)
+            {
+                return response.Data;
+            }
+
+            return new List<SteamGridDbGrid>();
+        }
+
+        /// <summary>
+        /// Gets square icons for a game by SteamGridDB game ID - convenience method.
+        /// Icons are typically square, but this ensures only 1:1 ratio icons are returned.
+        /// </summary>
+        /// <param name="gameId">SteamGridDB game ID.</param>
+        /// <param name="styles">Styles to filter by. Use null for all styles.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>List of square icons only.</returns>
+        public async Task<List<SteamGridDbGrid>> GetSquareIconsByGameIdAsync(int gameId, string[] styles = null, CancellationToken cancellationToken = default)
+        {
+            return await GetIconsByGameIdAsync(gameId, new[] { "128", "256", "512", "1024" }, styles, cancellationToken);
         }
 
         /// <summary>

@@ -121,7 +121,7 @@
                         <Style TargetType="ListViewItem">
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             <Setter Property="Padding" Value="0" />
-                            <Setter Property="Margin" Value="0,0,0,2" />
+                            <Setter Property="Margin" Value="0,0,0,4" />
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="BorderThickness" Value="0" />
                             <Setter Property="Template">
@@ -132,7 +132,7 @@
                                             Background="{TemplateBinding Background}"
                                             CornerRadius="6">
                                             <ContentPresenter
-                                                Margin="12,8"
+                                                Margin="16,12"
                                                 HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                 VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                                 Content="{TemplateBinding Content}"
@@ -162,7 +162,7 @@
                         <DataTemplate x:DataType="models:GameEntry">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="48" />
+                                    <ColumnDefinition Width="80" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
@@ -170,13 +170,13 @@
                                 <!--  Game image - Modern rounded  -->
                                 <Grid
                                     Grid.Column="0"
-                                    Width="48"
-                                    Height="48"
-                                    CornerRadius="4">
+                                    Width="80"
+                                    Height="80"
+                                    CornerRadius="6">
                                     <Grid.Clip>
-                                        <RectangleGeometry Rect="0,0,48,48" />
+                                        <RectangleGeometry Rect="0,0,80,80" />
                                     </Grid.Clip>
-                                    <Border Background="#2D2D2D" CornerRadius="4">
+                                    <Border Background="#2D2D2D" CornerRadius="6">
                                         <Grid>
                                             <Image
                                                 Source="{x:Bind Image, Mode=OneWay}"
@@ -186,7 +186,7 @@
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 FontFamily="Segoe MDL2 Assets"
-                                                FontSize="20"
+                                                FontSize="32"
                                                 Foreground="#66FFFFFF"
                                                 Glyph="&#xE7C5;"
                                                 Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}" />
@@ -197,11 +197,11 @@
                                 <!--  Game info - Modern typography  -->
                                 <StackPanel
                                     Grid.Column="1"
-                                    Margin="12,0,0,0"
+                                    Margin="16,0,0,0"
                                     VerticalAlignment="Center">
                                     <!--  Game Name  -->
                                     <TextBlock
-                                        FontSize="13"
+                                        FontSize="15"
                                         FontWeight="SemiBold"
                                         Foreground="#FFFFFF"
                                         Text="{x:Bind Name, Mode=OneWay}"
@@ -210,7 +210,8 @@
 
                                     <!--  Image Filename  -->
                                     <TextBlock
-                                        FontSize="11"
+                                        Margin="0,2,0,0"
+                                        FontSize="12"
                                         Foreground="#99FFFFFF"
                                         Opacity="0.9"
                                         Text="{x:Bind ImageFileName, Mode=OneWay}"
@@ -219,13 +220,14 @@
 
                                     <!--  Platform info  -->
                                     <TextBlock
-                                        FontSize="11"
+                                        Margin="0,2,0,0"
+                                        FontSize="12"
                                         Foreground="#99FFFFFF"
                                         Opacity="0.8">
                                         <Run Text="{x:Bind Platform, Mode=OneWay}" />
                                         <Run Text=" • " />
                                         <Run Text="{x:Bind PlatformId, Mode=OneWay}" />
-                                        <Run Text=" • Added: " />
+                                        <Run Text=" • " />
                                         <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}" />
                                     </TextBlock>
                                 </StackPanel>
@@ -235,11 +237,11 @@
                                     Grid.Column="2"
                                     VerticalAlignment="Center"
                                     Orientation="Horizontal"
-                                    Spacing="4">
+                                    Spacing="6">
                                     <!--  Restore button  -->
                                     <Button
-                                        Width="32"
-                                        Height="32"
+                                        Width="40"
+                                        Height="40"
                                         Click="RestoreBackup_Click"
                                         Style="{StaticResource FluentIconButton}"
                                         Tag="{x:Bind}"
@@ -247,16 +249,16 @@
                                         Visibility="{x:Bind RestoreButtonVisibility, Mode=OneWay}">
                                         <FontIcon
                                             FontFamily="Segoe MDL2 Assets"
-                                            FontSize="14"
+                                            FontSize="16"
                                             Glyph="&#xE7A7;" />
                                     </Button>
 
                                     <!--  Edit/Search button container - ensures alignment  -->
-                                    <Grid Width="32" Height="32">
+                                    <Grid Width="40" Height="40">
                                         <!--  Search button (for Unknown games)  -->
                                         <Button
-                                            Width="32"
-                                            Height="32"
+                                            Width="40"
+                                            Height="40"
                                             Click="SearchGameImage_Click"
                                             Style="{StaticResource FluentIconButton}"
                                             Tag="{x:Bind}"
@@ -264,14 +266,14 @@
                                             Visibility="{x:Bind SearchButtonVisibility, Mode=OneWay}">
                                             <FontIcon
                                                 FontFamily="Segoe MDL2 Assets"
-                                                FontSize="14"
+                                                FontSize="16"
                                                 Glyph="&#xE721;" />
                                         </Button>
 
                                         <!--  Edit button  -->
                                         <Button
-                                            Width="32"
-                                            Height="32"
+                                            Width="40"
+                                            Height="40"
                                             Click="EditGameImage_Click"
                                             IsEnabled="{x:Bind CanEditImage, Mode=OneWay}"
                                             Style="{StaticResource FluentIconButton}"
@@ -280,7 +282,7 @@
                                             Visibility="{x:Bind EditButtonVisibility, Mode=OneWay}">
                                             <FontIcon
                                                 FontFamily="Segoe MDL2 Assets"
-                                                FontSize="14"
+                                                FontSize="16"
                                                 Glyph="&#xE104;" />
                                         </Button>
                                     </Grid>
@@ -401,17 +403,6 @@
                                             <RectangleGeometry Rect="0,0,140,140" />
                                         </Grid.Clip>
                                         <Image Source="{x:Bind ThumbUrl, Mode=OneWay}" Stretch="UniformToFill" />
-                                        <Border
-                                            Padding="8,4"
-                                            VerticalAlignment="Bottom"
-                                            Background="#CC000000">
-                                            <TextBlock
-                                                FontSize="9"
-                                                FontWeight="SemiBold"
-                                                Foreground="#CCFFFFFF"
-                                                Text="{x:Bind Author, Mode=OneWay}"
-                                                TextAlignment="Center" />
-                                        </Border>
                                     </Grid>
                                 </DataTemplate>
                             </GridView.ItemTemplate>
