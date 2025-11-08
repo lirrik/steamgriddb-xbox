@@ -6,7 +6,7 @@ Currently supports automatic detection for games from Steam and GOG; games from 
 
 Battle.net is unlikely to be ever supported because the Xbox app does not store images for Battle.net games in the same way as the other stores, and games from Battle.net usually already have high quality cover art in the Xbox app.
 
-The widget requires user to enable File system access under **Settings > Privacy & security > File system > Let apps access your file system**, because by default it runs in a sandboxed environment where it is not allowed to access data of the other apps such as the Xbox app - this is the only way to enable such functionality. The only files being accessed are the Xbox app images downloaded for games installed from the third-party libraries.
+The widget requires user to enable File system access under ***Settings > Privacy & security > File system > Let apps access your file system***, because by default it runs in a sandboxed environment where it is not allowed to access data of the other apps such as the Xbox app - this is the only way to enable such functionality. The only files being accessed are the Xbox app images downloaded for games installed from the third-party libraries.
 
 Currently known issues and limitations:
 - Investigating if automatic game detection can be implemented for games from the Epic Store; games from Ubisoft Store are less likely to support it.
