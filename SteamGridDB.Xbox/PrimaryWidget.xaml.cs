@@ -342,6 +342,283 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
+        /// Handle fix library button click to automatically download artwork for all eligible games
+        /// </summary>
+        private async void FixLibraryButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Show confirmation dialog
+            ContentDialog confirmDialog = new ContentDialog
+            {
+                Title = "Fix my library",
+                Content = "This will automatically download the highest-scored artwork from SteamGridDB for all known games that haven't been manually modified yet.\n\n" +
+                          "Original images will be backed up and can be restored later.\n\n" +
+                          "Do you want to continue?",
+                PrimaryButtonText = "Fix my library",
+                CloseButtonText = "Cancel",
+                Style = Resources["DarkContentDialogStyle"] as Style,
+                PrimaryButtonStyle = Resources["ContentDialogButtonStyle"] as Style,
+                CloseButtonStyle = Resources["ContentDialogButtonStyle"] as Style
+            };
+
+            // Set XamlRoot for proper dialog display
+            if (Windows.Foundation.Metadata.ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 8))
+            {
+                confirmDialog.XamlRoot = Content.XamlRoot;
+            }
+
+            ContentDialogResult result = await confirmDialog.ShowAsync();
+
+            // Only proceed if user clicked the primary button
+            if (result == ContentDialogResult.Primary)
+            {
+                await FixLibraryAsync();
+            }
+        }
+
+        /// <summary>
+        /// Automatically downloads the highest-scored artwork for games with known names and no backup
+        /// </summary>
+        private async Task FixLibraryAsync()
+        {
+            try
+            {
+                // Get eligible games: known name and no backup
+                var eligibleGames = GameEntries.Where(g => g.Name != "Unknown" && !g.HasBackup).ToList();
+
+                if (eligibleGames.Count == 0)
+                {
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        StatusText.Text = "No eligible game artworks to fix (all games either have unknown names or already have backups)";
+                    });
+
+                    return;
+                }
+
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = $"Fixing library artwork: processing {eligibleGames.Count} game{(eligibleGames.Count == 1 ? "" : "s")}...";
+                });
+
+                int successCount = 0;
+                int skipCount = 0;
+                int errorCount = 0;
+
+                foreach (var game in eligibleGames)
+                {
+                    try
+                    {
+                        await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                        {
+                            StatusText.Text = $"Processing {game.Name} ({successCount + skipCount + errorCount + 1}/{eligibleGames.Count})...";
+                        });
+
+                        // Get the platform string for SteamGridDB API
+                        string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
+
+                        if (string.IsNullOrEmpty(platformString))
+                        {
+                            skipCount++;
+                            System.Diagnostics.Debug.WriteLine($"Skipping {game.Name}: unsupported platform");
+
+                            continue;
+                        }
+
+                        // Fetch grids and icons from SteamGridDB
+                        using (var client = new SteamGridDbClient(steamGridDbApiKey))
+                        {
+                            var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.PlatformId);
+                            var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.PlatformId);
+
+                            // Try grids first
+                            if (grids != null && grids.Count > 0)
+                            {
+                                // Get the highest-scored grid
+                                var bestGrid = grids.OrderByDescending(g => g.Score).First();
+                                bool downloaded = await DownloadAndReplaceImageForGameAsync(game, bestGrid.Url);
+
+                                if (downloaded)
+                                {
+                                    successCount++;
+                                }
+                                else
+                                {
+                                    errorCount++;
+                                }
+                            }
+                            // If no grids, try icons
+                            else if (icons != null && icons.Count > 0)
+                            {
+                                // Get the highest-scored icon
+                                var bestIcon = icons.OrderByDescending(i => i.Score).First();
+                                bool downloaded = await DownloadAndReplaceImageForGameAsync(game, bestIcon.Url);
+
+                                if (downloaded)
+                                {
+                                    successCount++;
+                                }
+                                else
+                                {
+                                    errorCount++;
+                                }
+                            }
+                            else
+                            {
+                                skipCount++;
+                                System.Diagnostics.Debug.WriteLine($"No artwork found for {game.Name}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        System.Diagnostics.Debug.WriteLine($"Error processing {game.Name}: {ex.Message}");
+                    }
+                }
+
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = $"Fix library completed: {successCount} updated, {skipCount} skipped, {errorCount} error{(errorCount == 1 ? "" : "s")}";
+                });
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = $"Error fixing library: {ex.Message}";
+                });
+
+                System.Diagnostics.Debug.WriteLine($"Error in FixLibraryAsync: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Downloads and replaces an image for a specific game
+        /// </summary>
+        /// <param name="game">The game to update</param>
+        /// <param name="imageUrl">The URL of the image to download</param>
+        /// <returns>True if successful, false otherwise</returns>
+        private async Task<bool> DownloadAndReplaceImageForGameAsync(GameEntry game, string imageUrl)
+        {
+            try
+            {
+                // Find the game folder
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string thirdPartyLibrariesPath = Path.Combine(userProfile,
+                    @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
+                string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
+
+                StorageFolder gameFolder = null;
+
+                try
+                {
+                    gameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
+                }
+                catch
+                {
+                    return false;
+                }
+
+                // Reuse the common download and replace logic
+                return await DownloadAndReplaceImageCoreAsync(game, gameFolder, imageUrl, updateStatusText: false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error downloading image for {game.Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Core logic for downloading and replacing a game's image
+        /// </summary>
+        /// <param name="game">The game to update</param>
+        /// <param name="gameFolder">The game's storage folder</param>
+        /// <param name="imageUrl">The URL of the image to download</param>
+        /// <param name="updateStatusText">Whether to update the main status text</param>
+        /// <returns>True if successful, false otherwise</returns>
+        private async Task<bool> DownloadAndReplaceImageCoreAsync(GameEntry game, StorageFolder gameFolder, string imageUrl, bool updateStatusText = true)
+        {
+            try
+            {
+                // Download the image
+                using (var httpClient = new HttpClient())
+                {
+                    var response = await httpClient.GetAsync(new Uri(imageUrl));
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return false;
+                    }
+
+                    var imageBytes = await response.Content.ReadAsBufferAsync();
+
+                    // Generate the filenames
+                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.png";
+                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.bak";
+
+                    // Create backup of ORIGINAL image ONLY if backup doesn't already exist
+                    bool backupExists = false;
+
+                    try
+                    {
+                        await gameFolder.GetFileAsync(backupFileName);
+                        backupExists = true;
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        // Backup doesn't exist, create it from current image
+                        try
+                        {
+                            var existingImageFile = await gameFolder.GetFileAsync(imageFileName);
+
+                            // Backup the ORIGINAL image by copying to preserve it
+                            var backupFile = await gameFolder.CreateFileAsync(backupFileName, CreationCollisionOption.ReplaceExisting);
+                            backupExists = true;
+                            var existingBuffer = await FileIO.ReadBufferAsync(existingImageFile);
+                            await FileIO.WriteBufferAsync(backupFile, existingBuffer);
+                        }
+                        catch (FileNotFoundException)
+                        {
+                            // No existing image to backup
+                        }
+                    }
+
+                    // Save the new image (replaces current)
+                    var imageFile = await gameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
+                    await FileIO.WriteBufferAsync(imageFile, imageBytes);
+
+                    // Reload the image in the UI
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                    {
+                        var newImage = new BitmapImage();
+
+                        using (var stream = await imageFile.OpenReadAsync())
+                        {
+                            await newImage.SetSourceAsync(stream);
+                        }
+
+                        game.Image = newImage;
+                        game.ImageFileName = imageFileName;
+                        game.HasBackup = backupExists;
+
+                        if (updateStatusText)
+                        {
+                            StatusText.Text = $"Image {imageFileName} updated successfully";
+                        }
+                    });
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in DownloadAndReplaceImageCoreAsync for {game.Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Handle edit button click to show grid selection panel
         /// </summary>
         private async void EditGameImage_Click(object sender, RoutedEventArgs e)
@@ -508,107 +785,23 @@ namespace SteamGridDB.Xbox
                 GridPanelStatus.Text = "Downloading image...";
                 GridLoadingRing.IsActive = true;
 
-                // Download the image
-                using (var httpClient = new HttpClient())
+                // Use the core download and replace logic
+                bool success = await DownloadAndReplaceImageCoreAsync(currentSelectedGame, currentGameFolder, gridItem.Url, updateStatusText: true);
+
+                if (success)
                 {
-                    var response = await httpClient.GetAsync(new Uri(gridItem.Url));
+                    GridPanelStatus.Text = "Image updated successfully";
 
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        GridPanelStatus.Text = "Failed to download image";
-                        GridLoadingRing.IsActive = false;
-
-                        return;
-                    }
-
-                    var imageBytes = await response.Content.ReadAsBufferAsync();
-
-                    // Generate the filenames
-                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId.Replace(":", "_")}.png";
-                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId.Replace(":", "_")}.bak";
-
-                    // Create backup of ORIGINAL image ONLY if backup doesn't already exist
-                    bool backupExists = false;
-
-                    try
-                    {
-                        await currentGameFolder.GetFileAsync(backupFileName);
-                        backupExists = true;
-                        GridPanelStatus.Text = "Original backup exists, downloading new image...";
-                    }
-                    catch (FileNotFoundException)
-                    {
-                        // Backup doesn't exist, create it from current image
-                        try
-                        {
-                            var existingImageFile = await currentGameFolder.GetFileAsync(imageFileName);
-
-                            // Backup the ORIGINAL image by copying (not renaming) to preserve it
-                            var backupFile = await currentGameFolder.CreateFileAsync(backupFileName, CreationCollisionOption.ReplaceExisting);
-                            backupExists = true;
-                            var existingBuffer = await FileIO.ReadBufferAsync(existingImageFile);
-                            await FileIO.WriteBufferAsync(backupFile, existingBuffer);
-
-                            GridPanelStatus.Text = "Original backed up, downloading new image...";
-                        }
-                        catch (FileNotFoundException)
-                        {
-                            // No existing image to backup
-                            GridPanelStatus.Text = "Downloading new image...";
-                        }
-                    }
-
-                    // Save the new image (replaces current)
-                    try
-                    {
-                        var imageFile = await currentGameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
-                        await FileIO.WriteBufferAsync(imageFile, imageBytes);
-
-                        //// Set the file to read-only to prevent external overwrites - looks like this is not actually needed?
-                        //try
-                        //{
-                        //    // Set read-only attribute using Win32 file system
-                        //    string fullPath = imageFile.Path;
-                        //    System.IO.FileAttributes currentAttributes = System.IO.File.GetAttributes(fullPath);
-                        //    System.IO.File.SetAttributes(fullPath, currentAttributes | System.IO.FileAttributes.ReadOnly);
-
-                        //    System.Diagnostics.Debug.WriteLine($"Set {imageFileName} to read-only");
-                        //}
-                        //catch (Exception attrEx)
-                        //{
-                        //    // Log but don't fail if we can't set read-only
-                        //    System.Diagnostics.Debug.WriteLine($"Could not set read-only attribute: {attrEx.Message}");
-                        //}
-
-                        // Reload the image in the UI
-                        await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
-                        {
-                            var newImage = new BitmapImage();
-
-                            using (var stream = await imageFile.OpenReadAsync())
-                            {
-                                await newImage.SetSourceAsync(stream);
-                            }
-
-                            currentSelectedGame.Image = newImage;
-                            currentSelectedGame.ImageFileName = imageFileName;
-                            currentSelectedGame.HasBackup = backupExists; // Mark that backup exists (original preserved)
-
-                            StatusText.Text = $"Image {imageFileName} updated successfully";
-                        });
-
-                        GridPanelStatus.Text = "Image updated successfully";
-
-                        // Close panel after short delay
-                        await Task.Delay(250);
-                        await HideGridPanelAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        GridPanelStatus.Text = $"Error saving image: {ex.Message}";
-                        System.Diagnostics.Debug.WriteLine($"Error saving image: {ex.Message}");
-                    }
+                    // Close panel after short delay
+                    await Task.Delay(250);
+                    await HideGridPanelAsync();
                 }
+                else
+                {
+                    GridPanelStatus.Text = "Failed to download or save image";
+                }
+
+                GridLoadingRing.IsActive = false;
             }
             catch (Exception ex)
             {

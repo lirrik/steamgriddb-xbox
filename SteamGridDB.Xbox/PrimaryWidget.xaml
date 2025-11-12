@@ -21,6 +21,24 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="FontFamily" Value="Segoe UI" />
         </Style>
+
+        <!--  Custom ContentDialog Style matching widget theme  -->
+        <Style x:Key="DarkContentDialogStyle" TargetType="ContentDialog">
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Background" Value="#252525" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style x:Key="ContentDialogButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#2D2D2D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
     </Page.Resources>
 
     <Grid Background="#1F1F1F">
@@ -43,7 +61,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!--  App Icon  -->
+                <!--  Game Icon  -->
                 <FontIcon
                     Grid.Column="0"
                     Margin="0,0,12,0"
@@ -66,6 +84,17 @@
                     Grid.Column="2"
                     Orientation="Horizontal"
                     Spacing="8">
+                    <Button
+                        Width="32"
+                        Height="32"
+                        Click="FixLibraryButton_Click"
+                        Style="{StaticResource FluentIconButton}"
+                        ToolTipService.ToolTip="Fix my library">
+                        <FontIcon
+                            FontFamily="Segoe MDL2 Assets"
+                            FontSize="14"
+                            Glyph="&#xE74C;" />
+                    </Button>
                     <Button
                         Width="32"
                         Height="32"
