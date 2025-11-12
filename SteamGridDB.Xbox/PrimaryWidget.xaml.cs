@@ -145,6 +145,9 @@ namespace SteamGridDB.Xbox
                     StatusText.Text = $"Found {folders.Count} directories. Loading...";
                 });
 
+                // Temporary list to collect games before sorting
+                var tempGameList = new List<GameEntry>();
+
                 foreach (var folder in folders)
                 {
                     string directoryName = folder.Name;
@@ -280,20 +283,17 @@ namespace SteamGridDB.Xbox
                                     }
                                 }
 
-
-                                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                                // Add to temporary list instead of directly to GameEntries
+                                tempGameList.Add(new GameEntry
                                 {
-                                    GameEntries.Add(new GameEntry
-                                    {
-                                        Name = gameName,
-                                        PlatformId = platformId,
-                                        ImageFileName = imageName,
-                                        Platform = platform,
-                                        AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
-                                        Directory = directoryName,
-                                        Image = image,
-                                        HasBackup = hasBackup
-                                    });
+                                    Name = gameName,
+                                    PlatformId = platformId,
+                                    ImageFileName = imageName,
+                                    Platform = platform,
+                                    AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
+                                    Directory = directoryName,
+                                    Image = image,
+                                    HasBackup = hasBackup
                                 });
                             }
                         }
@@ -310,8 +310,19 @@ namespace SteamGridDB.Xbox
                     }
                 }
 
+                // Sort games alphabetically by name, with "Unknown" at the end
+                var sortedGames = tempGameList
+                    .OrderBy(g => g.Name == "Unknown" ? 1 : 0)
+                    .ThenBy(g => g.Name)
+                    .ToList();
+
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
+                    foreach (var game in sortedGames)
+                    {
+                        GameEntries.Add(game);
+                    }
+
                     StatusText.Text = $"Loaded {GameEntries.Count} game entries";
                 });
             }
