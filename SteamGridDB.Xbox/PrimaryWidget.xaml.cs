@@ -336,6 +336,7 @@ namespace SteamGridDB.Xbox
         private async void EditGameImage_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
+
             if (button?.Tag is GameEntry gameEntry)
             {
                 currentSelectedGame = gameEntry;
@@ -487,8 +488,8 @@ namespace SteamGridDB.Xbox
                     var imageBytes = await response.Content.ReadAsBufferAsync();
 
                     // Generate the filenames
-                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId}.png";
-                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId}.bak";
+                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId.Replace(":", "_")}.png";
+                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(currentSelectedGame.Platform)}_{currentSelectedGame.PlatformId.Replace(":", "_")}.bak";
 
                     // Create backup of ORIGINAL image ONLY if backup doesn't already exist
                     bool backupExists = false;
@@ -563,7 +564,7 @@ namespace SteamGridDB.Xbox
                         GridPanelStatus.Text = "Image updated successfully";
 
                         // Close panel after short delay
-                        await Task.Delay(1000);
+                        await Task.Delay(250);
                         await HideGridPanelAsync();
                     }
                     catch (Exception ex)
@@ -947,8 +948,8 @@ namespace SteamGridDB.Xbox
                 }
 
                 // Generate the filenames
-                string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId}.png";
-                string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId}.bak";
+                string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.png";
+                string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.bak";
 
                 //// Remove read-only attribute from current image if it exists - looks like this is not actually needed?
                 //try
