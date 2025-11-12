@@ -142,7 +142,7 @@ namespace SteamGridDB.Xbox
 
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
-                    StatusText.Text = $"Found {folders.Count} directories. Loading...";
+                    StatusText.Text = $"Found {folders.Count} director{(folders.Count == 1 ? "y" : "ies")}. Loading...";
                 });
 
                 // Temporary list to collect games before sorting
@@ -323,7 +323,7 @@ namespace SteamGridDB.Xbox
                         GameEntries.Add(game);
                     }
 
-                    StatusText.Text = $"Loaded {GameEntries.Count} game entries";
+                    StatusText.Text = $"Loaded {GameEntries.Count} game entr{(GameEntries.Count == 1 ? "y" : "ies")}";
                 });
             }
             catch (Exception ex)
@@ -373,7 +373,7 @@ namespace SteamGridDB.Xbox
                 // Show loading indicator
                 GridLoadingRing.IsActive = true;
                 GridImagesView.Items.Clear();
-                GridPanelStatus.Text = $"Loading artworks for {game.ImageFileName ?? game.PlatformId}...";
+                GridPanelStatus.Text = $"Loading artworks for {game.Name ?? $"{game.Platform} / {game.PlatformId}"}...";
 
                 // Get the platform string for SteamGridDB API
                 string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
@@ -386,70 +386,22 @@ namespace SteamGridDB.Xbox
                 }
 
                 // Find the game folder
-                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string thirdPartyLibrariesPath = Path.Combine(userProfile,
-                   @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
-                string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
-
-                try
-                {
-                    currentGameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
-                }
-                catch
+                if (!await TrySetCurrentGameFolderAsync(game.Directory))
                 {
                     GridPanelStatus.Text = "Could not access game folder";
                     GridLoadingRing.IsActive = false;
+
                     return;
                 }
 
                 // Fetch grids and icons from SteamGridDB
                 using (var client = new SteamGridDbClient(steamGridDbApiKey))
                 {
-                    // Fetch both grids and icons
+                    // Fetch both grids and icons by platform ID
                     var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.PlatformId);
                     var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.PlatformId);
 
-                    // Combine grids and icons
-                    var allArtworks = new List<SteamGridDbGrid>();
-
-                    if (grids != null && grids.Count > 0)
-                    {
-                        allArtworks.AddRange(grids);
-                    }
-
-                    if (icons != null && icons.Count > 0)
-                    {
-                        allArtworks.AddRange(icons);
-                    }
-
-                    if (allArtworks.Count == 0)
-                    {
-                        GridPanelStatus.Text = "No artworks found for this game";
-                        GridLoadingRing.IsActive = false;
-
-                        return;
-                    }
-
-                    // Sort by score (highest first)
-                    var sortedArtworks = allArtworks.OrderByDescending(g => g.Score).ToList();
-
-                    // Add items to grid view
-                    foreach (var artwork in sortedArtworks)
-                    {
-                        GridImagesView.Items.Add(new GridImageItem
-                        {
-                            Id = artwork.Id,
-                            Url = artwork.Url,
-                            ThumbUrl = artwork.Thumb ?? artwork.Url,
-                            Author = artwork.Author?.Name ?? "Unknown",
-                            Style = artwork.Style ?? "default",
-                            Score = artwork.Score
-                        });
-                    }
-
-                    int gridCount = grids?.Count ?? 0;
-                    int iconCount = icons?.Count ?? 0;
-                    GridPanelStatus.Text = $"Found {gridCount} grid(s) and {iconCount} icon(s) ({allArtworks.Count} total)";
+                    PopulateGridSelectionPanel(grids, icons);
                 }
 
                 GridLoadingRing.IsActive = false;
@@ -460,6 +412,79 @@ namespace SteamGridDB.Xbox
                 GridLoadingRing.IsActive = false;
                 System.Diagnostics.Debug.WriteLine($"Error loading artworks: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Attempts to set the current game folder for the specified directory.
+        /// </summary>
+        /// <param name="directory">The game directory name</param>
+        /// <returns>True if successful, false otherwise</returns>
+        private async Task<bool> TrySetCurrentGameFolderAsync(string directory)
+        {
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string thirdPartyLibrariesPath = Path.Combine(userProfile,
+                @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
+            string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, directory);
+
+            try
+            {
+                currentGameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Populates the grid selection panel with the provided grids and icons.
+        /// </summary>
+        /// <param name="grids">Collection of grid artworks</param>
+        /// <param name="icons">Collection of icon artworks</param>
+        private void PopulateGridSelectionPanel(IList<SteamGridDbGrid> grids, IList<SteamGridDbGrid> icons)
+        {
+            // Combine grids and icons
+            var allArtworks = new List<SteamGridDbGrid>();
+
+            if (grids != null && grids.Count > 0)
+            {
+                allArtworks.AddRange(grids);
+            }
+
+            if (icons != null && icons.Count > 0)
+            {
+                allArtworks.AddRange(icons);
+            }
+
+            if (allArtworks.Count == 0)
+            {
+                GridPanelStatus.Text = "No artworks found for this game";
+
+                return;
+            }
+
+            // Sort by score (highest first)
+            var sortedArtworks = allArtworks.OrderByDescending(g => g.Score).ToList();
+
+            // Add items to grid view
+            foreach (var artwork in sortedArtworks)
+            {
+                GridImagesView.Items.Add(new GridImageItem
+                {
+                    Id = artwork.Id,
+                    Url = artwork.Url,
+                    ThumbUrl = artwork.Thumb ?? artwork.Url,
+                    Author = artwork.Author?.Name ?? "Unknown",
+                    Style = artwork.Style ?? "default",
+                    Score = artwork.Score
+                });
+            }
+
+            int gridCount = grids?.Count ?? 0;
+            int iconCount = icons?.Count ?? 0;
+            GridPanelStatus.Text = $"Found {gridCount} grid{(gridCount == 1 ? "" : "s")} and {iconCount} icon{(iconCount == 1 ? "" : "s")} ({allArtworks.Count} total)";
         }
 
         /// <summary>
@@ -723,7 +748,7 @@ namespace SteamGridDB.Xbox
                         SearchResultsListView.Items.Add(game);
                     }
 
-                    SearchPanelStatus.Text = $"Found {results.Count} game(s)";
+                    SearchPanelStatus.Text = $"Found {results.Count} game{(results.Count == 1 ? "" : "s")}";
                 }
 
                 SearchLoadingRing.IsActive = false;
@@ -771,69 +796,21 @@ namespace SteamGridDB.Xbox
                 GridPanelStatus.Text = $"Loading artworks for {game.Name}...";
 
                 // Find the game folder (for saving later)
-                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string thirdPartyLibrariesPath = Path.Combine(userProfile,
-                     @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
-                string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, currentSelectedGame.Directory);
-
-                try
-                {
-                    currentGameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
-                }
-                catch
+                if (!await TrySetCurrentGameFolderAsync(currentSelectedGame.Directory))
                 {
                     GridPanelStatus.Text = "Could not access game folder";
                     GridLoadingRing.IsActive = false;
-
                     return;
                 }
 
                 // Fetch grids and icons from SteamGridDB by game ID
                 using (var client = new SteamGridDbClient(steamGridDbApiKey))
                 {
-                    // Fetch both grids and icons
+                    // Fetch both grids and icons by game ID
                     var grids = await client.GetSquareGridsByGameIdAsync(game.Id);
                     var icons = await client.GetSquareIconsByGameIdAsync(game.Id);
 
-                    // Combine grids and icons
-                    var allArtworks = new List<SteamGridDbGrid>();
-
-                    if (grids != null && grids.Count > 0)
-                    {
-                        allArtworks.AddRange(grids);
-                    }
-
-                    if (icons != null && icons.Count > 0)
-                    {
-                        allArtworks.AddRange(icons);
-                    }
-
-                    if (allArtworks.Count == 0)
-                    {
-                        GridPanelStatus.Text = "No artworks found for this game";
-                        GridLoadingRing.IsActive = false;
-
-                        return;
-                    }
-
-                    // Sort by score (highest first)
-                    var sortedArtworks = allArtworks.OrderByDescending(g => g.Score).ToList();
-
-                    // Add items to grid view
-                    foreach (var artwork in sortedArtworks)
-                    {
-                        GridImagesView.Items.Add(new GridImageItem
-                        {
-                            Id = artwork.Id,
-                            Url = artwork.Url,
-                            ThumbUrl = artwork.Thumb ?? artwork.Url,
-                            Author = artwork.Author?.Name ?? "Unknown",
-                            Style = artwork.Style ?? "default",
-                            Score = artwork.Score
-                        });
-                    }
-
-                    GridPanelStatus.Text = $"Found {grids.Count} grid(s) and {icons.Count} icon(s) ({allArtworks.Count} total)";
+                    PopulateGridSelectionPanel(grids, icons);
                 }
 
                 GridLoadingRing.IsActive = false;
