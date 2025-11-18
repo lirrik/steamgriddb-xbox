@@ -4,7 +4,7 @@
 
 Xbox Game Bar widget to customize Xbox PC app game artwork with images from [SteamGridDB](https://www.steamgriddb.com/). Replace wrong, low-resolution or missing images for games from third-party stores (Steam, GOG, Epic Games Store and Ubisoft Connect) with high-quality artwork submitted by community.
 
-Automatically detects Steam games and most popular GOG titles through SteamGridDB's platform ID matching. For Epic Games Store and Ubisoft Connect games, use the built-in search feature to manually select the correct game.
+Automatically detects Steam games and most popular GOG titles through SteamGridDB's platform ID matching. For Epic Games Store, Ubisoft Connect and the rest of undetected GOG games, use the built-in search feature to manually select the correct game.
 
 Battle.net is unlikely to be ever supported because the Xbox app does not store images for Battle.net games in the same way as the other stores, and games from Battle.net usually already have high-quality cover art in the Xbox app.
 
