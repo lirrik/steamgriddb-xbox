@@ -10,10 +10,11 @@ Battle.net is unlikely to be ever supported because the Xbox app does not store 
 
 The widget requires user to enable File system access under ***Settings > Privacy & security > File system > Let apps access your file system***, because by default it runs in a sandboxed environment where it is not allowed to access data of the other apps such as the Xbox app - this is the only way to enable such functionality. The only files being accessed are the Xbox app images downloaded for games installed from the third-party libraries.
 
-### Currently known issues and limitations
+### Currently known issues and/or limitations
 - Demos are not supported for automatic matching, even from Steam - their ID is different from the main game, but their artwork can still be changed with manual search.
+- The widget is specifically looking for square grids (512x512 or 1024x1024) or icons (which are always square), because the Xbox app is designed to show square artwork. That is why results from SteamGridDB are filtered and do not show all available images.
 - Investigating if automatic game detection can be implemented for games from Epic Games Store or Ubisoft Connect.
-- Sometimes the Xbox app does not fully clean up data for removed games, specifically from the manifest files - those entries will show up in the widget.
+- Sometimes the Xbox app does not fully clean up data for removed games, specifically from the manifest files - those entries will show up in the widget. Sometimes some installed games will be missing from the manifest files and not show up in the widget. The best solution is to delete your ThirdParty folder or the manifest files - Xbox app will recreate them and that will fix it.
 - Only first 50 square grids and first 50 icons are loaded from SteamGridDB (paging is not implemented yet).
 - Controller support is not implemented yet - please use touch or mouse for now.
 
