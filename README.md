@@ -13,6 +13,7 @@ The widget requires user to enable File system access under ***Settings > Privac
 ### Currently known issues and/or limitations
 - Demos are not supported for automatic matching, even from Steam - their ID is different from the main game, but their artwork can still be changed with manual search.
 - The widget is specifically looking for square grids (512x512 or 1024x1024) or icons (which are always square), because the Xbox app is designed to show square artwork. That is why results from SteamGridDB are filtered and do not show all available images.
+- Freshly uploaded SteamGridDB artwork might not show up in the widget immediately due to SteamGridDB API caching.
 - Investigating if automatic game detection can be implemented for games from Epic Games Store or Ubisoft Connect.
 - Sometimes the Xbox app does not fully clean up data for removed games, specifically from the manifest files - those entries will show up in the widget. Sometimes some installed games will be missing from the manifest files and not show up in the widget. The best solution is to delete your ThirdParty folder or the manifest files - Xbox app will recreate them and that will fix it.
 - Only first 50 square grids and first 50 icons are loaded from SteamGridDB (paging is not implemented yet).
