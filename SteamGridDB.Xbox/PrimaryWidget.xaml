@@ -255,7 +255,7 @@
                                         Opacity="0.8">
                                         <Run Text="{x:Bind Platform, Mode=OneWay}" />
                                         <Run Text=" • " />
-                                        <Run Text="{x:Bind PlatformId, Mode=OneWay}" />
+                                        <Run Text="{x:Bind ExternalPlatformId, Mode=OneWay}" />
                                         <Run Text=" • " />
                                         <Run Text="{x:Bind AddedDateFormatted, Mode=OneWay}" />
                                     </TextBlock>

@@ -10,13 +10,15 @@ namespace SteamGridDB.Xbox.Models
     public class GameEntry : INotifyPropertyChanged
     {
         private string name;
-        private string platformId;
+        private string xboxPlatformId;
+        private string externalPlatformId;
         private string directory;
         private GamePlatform platform;
         private DateTime addedDate;
         private string imageFileName;
         private BitmapImage image;
         private bool hasBackup;
+        private bool hasSteamGridDBMatch;
 
         public string Name
         {
@@ -27,25 +29,36 @@ namespace SteamGridDB.Xbox.Models
                 {
                     name = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(CanSearchGame));
-                    OnPropertyChanged(nameof(EditButtonVisibility));
-                    OnPropertyChanged(nameof(SearchButtonVisibility));
                 }
             }
         }
 
-        public string PlatformId
+        public string XboxPlatformId
         {
-            get => platformId;
+            get => xboxPlatformId;
             set
             {
-                if (platformId != value)
+                if (xboxPlatformId != value)
                 {
-                    platformId = value;
+                    xboxPlatformId = value;
                     OnPropertyChanged();
                 }
             }
         }
+
+        public string ExternalPlatformId
+        {
+            get => externalPlatformId;
+            set
+            {
+                if (externalPlatformId != value)
+                {
+                    externalPlatformId = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public string Directory
         {
             get => directory;
@@ -101,14 +114,26 @@ namespace SteamGridDB.Xbox.Models
             }
         }
 
-        // Search button should be visible when Name is "Unknown"
-        public bool CanSearchGame => Name == "Unknown";
+        public bool HasSteamGridDBMatch
+        {
+            get => hasSteamGridDBMatch;
+            set
+            {
+                if (hasSteamGridDBMatch != value)
+                {
+                    hasSteamGridDBMatch = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(EditButtonVisibility));
+                    OnPropertyChanged(nameof(SearchButtonVisibility));
+                }
+            }
+        }
 
-        // Edit button visible when NOT searching
-        public Visibility EditButtonVisibility => !CanSearchGame ? Visibility.Visible : Visibility.Collapsed;
+        // Edit button visible when there is a match
+        public Visibility EditButtonVisibility => HasSteamGridDBMatch ? Visibility.Visible : Visibility.Collapsed;
 
-        // Search button visible when Name is "Unknown"
-        public Visibility SearchButtonVisibility => CanSearchGame ? Visibility.Visible : Visibility.Collapsed;
+        // Search button visible when there is no match
+        public Visibility SearchButtonVisibility => !HasSteamGridDBMatch ? Visibility.Visible : Visibility.Collapsed;
 
         public bool HasBackup
         {

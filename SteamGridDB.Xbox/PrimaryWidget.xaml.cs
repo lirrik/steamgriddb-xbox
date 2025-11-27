@@ -254,8 +254,23 @@ namespace SteamGridDB.Xbox
 
                                 // Try to fetch game name from SteamGridDB API
                                 string gameName = "Unknown";
-                                string platformId = entryId.Substring(entryId.IndexOf(':') + 1);
                                 GamePlatform platform = GamePlatformHelper.FromXboxDirectory(directoryName);
+                                string xboxPlatformId = entryId.Substring(entryId.IndexOf(':') + 1);
+                                string externalPlatformId = xboxPlatformId;
+
+                                if (platform == GamePlatform.Epic)
+                                {
+                                    // For Epic, entryId format is "epic:namespace:somethingElse"
+                                    // Namespace is what we are after as common external ID
+                                    var parts = entryId.Split(':');
+
+                                    if (parts.Length >= 3)
+                                    {
+                                        externalPlatformId = parts[1];
+                                    }
+                                }
+
+                                bool hasSteamGridDBMatch = false;
 
                                 if (!string.IsNullOrEmpty(steamGridDbApiKey))
                                 {
@@ -267,11 +282,12 @@ namespace SteamGridDB.Xbox
                                         {
                                             using (var client = new SteamGridDbClient(steamGridDbApiKey))
                                             {
-                                                var gameInfo = await client.GetGameByPlatformIdAsync(platformString, platformId);
+                                                var gameInfo = await client.GetGameByPlatformIdAsync(platformString, externalPlatformId);
 
                                                 if (gameInfo != null && !string.IsNullOrEmpty(gameInfo.Name))
                                                 {
                                                     gameName = gameInfo.Name;
+                                                    hasSteamGridDBMatch = true;
                                                 }
                                             }
                                         }
@@ -287,13 +303,15 @@ namespace SteamGridDB.Xbox
                                 tempGameList.Add(new GameEntry
                                 {
                                     Name = gameName,
-                                    PlatformId = platformId,
+                                    XboxPlatformId = xboxPlatformId,
+                                    ExternalPlatformId = externalPlatformId,
                                     ImageFileName = imageName,
                                     Platform = platform,
                                     AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
                                     Directory = directoryName,
                                     Image = image,
-                                    HasBackup = hasBackup
+                                    HasBackup = hasBackup,
+                                    HasSteamGridDBMatch = hasSteamGridDBMatch
                                 });
                             }
                         }
@@ -427,8 +445,8 @@ namespace SteamGridDB.Xbox
                         // Fetch grids and icons from SteamGridDB
                         using (var client = new SteamGridDbClient(steamGridDbApiKey))
                         {
-                            var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.PlatformId);
-                            var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.PlatformId);
+                            var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.XboxPlatformId);
+                            var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.XboxPlatformId);
 
                             // Try grids first
                             if (grids != null && grids.Count > 0)
@@ -554,8 +572,8 @@ namespace SteamGridDB.Xbox
                     var imageBytes = await response.Content.ReadAsBufferAsync();
 
                     // Generate the filenames
-                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.png";
-                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.bak";
+                    string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.png";
+                    string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.bak";
 
                     // Create backup of ORIGINAL image ONLY if backup doesn't already exist
                     bool backupExists = false;
@@ -642,7 +660,7 @@ namespace SteamGridDB.Xbox
             try
             {
                 // Update panel header with game info
-                GridPanelHeaderText = $"Select artwork for {game.Name} (platform: {game.Platform}, ID: {game.PlatformId})";
+                GridPanelHeaderText = $"Select artwork for {game.Name} (platform: {game.Platform}, ID: {game.XboxPlatformId})";
 
                 // Show panel with animation
                 await ShowGridPanelAsync();
@@ -650,7 +668,7 @@ namespace SteamGridDB.Xbox
                 // Show loading indicator
                 GridLoadingRing.IsActive = true;
                 GridImagesView.Items.Clear();
-                GridPanelStatus.Text = $"Loading artworks for {game.Name ?? $"{game.Platform} / {game.PlatformId}"}...";
+                GridPanelStatus.Text = $"Loading artworks for {game.Name ?? $"{game.Platform} / {game.XboxPlatformId}"}...";
 
                 // Get the platform string for SteamGridDB API
                 string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
@@ -675,8 +693,8 @@ namespace SteamGridDB.Xbox
                 using (var client = new SteamGridDbClient(steamGridDbApiKey))
                 {
                     // Fetch both grids and icons by platform ID
-                    var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.PlatformId);
-                    var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.PlatformId);
+                    var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.XboxPlatformId);
+                    var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.XboxPlatformId);
 
                     PopulateGridSelectionPanel(grids, icons);
                 }
@@ -1103,7 +1121,7 @@ namespace SteamGridDB.Xbox
             {
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
-                    StatusText.Text = $"Restoring backup for {game.ImageFileName ?? game.PlatformId}...";
+                    StatusText.Text = $"Restoring backup for {game.ImageFileName ?? game.XboxPlatformId}...";
                 });
 
                 // Find the game folder
@@ -1129,28 +1147,8 @@ namespace SteamGridDB.Xbox
                 }
 
                 // Generate the filenames
-                string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.png";
-                string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.PlatformId.Replace(":", "_")}.bak";
-
-                //// Remove read-only attribute from current image if it exists - looks like this is not actually needed?
-                //try
-                //{
-                //    string currentImagePath = Path.Combine(gameFolder.Path, imageFileName);
-                //    if (System.IO.File.Exists(currentImagePath))
-                //    {
-                //        System.IO.FileAttributes currentAttributes = System.IO.File.GetAttributes(currentImagePath);
-                //        if ((currentAttributes & System.IO.FileAttributes.ReadOnly) == System.IO.FileAttributes.ReadOnly)
-                //        {
-                //            // Remove read-only flag
-                //            System.IO.File.SetAttributes(currentImagePath, currentAttributes & ~System.IO.FileAttributes.ReadOnly);
-                //            System.Diagnostics.Debug.WriteLine($"Removed read-only from {imageFileName}");
-                //        }
-                //    }
-                //}
-                //catch (Exception attrEx)
-                //{
-                //    System.Diagnostics.Debug.WriteLine($"Could not remove read-only attribute: {attrEx.Message}");
-                //}
+                string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.png";
+                string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.bak";
 
                 // Delete current image if it exists
                 try
@@ -1184,7 +1182,7 @@ namespace SteamGridDB.Xbox
                         game.ImageFileName = imageFileName;
                         game.HasBackup = false; // Backup no longer exists
 
-                        StatusText.Text = $"Backup restored for {game.ImageFileName ?? game.PlatformId}";
+                        StatusText.Text = $"Backup restored for {game.ImageFileName ?? game.XboxPlatformId}";
                     });
                 }
                 catch (FileNotFoundException)
