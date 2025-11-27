@@ -33,7 +33,10 @@ namespace SteamGridDB.Xbox
 
         private GameEntry currentSelectedGame;
         private StorageFolder currentGameFolder;
+
         private readonly string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+
+        private static Dictionary<string, string> ubisoftGameLookupCache = null;
 
         private string gridPanelHeaderText = "Select artwork";
         public string GridPanelHeaderText
@@ -312,12 +315,21 @@ namespace SteamGridDB.Xbox
                                     }
                                     else if (platform == GamePlatform.Epic)
                                     {
+                                        var epicName = await GetEpicGameNameAsync(externalPlatformId);
 
-                                    
+                                        if (!string.IsNullOrEmpty(epicName))
+                                        {
+                                            gameName = epicName;
+                                        }
                                     }
                                     else if (platform == GamePlatform.Ubisoft)
                                     {
-                                    
+                                        var ubisoftName = await GetUbisoftGameNameAsync(externalPlatformId);
+
+                                        if (!string.IsNullOrEmpty(ubisoftName))
+                                        {
+                                            gameName = ubisoftName;
+                                        }
                                     }
                                     else if (platform == GamePlatform.EA)
                                     {
@@ -1259,11 +1271,11 @@ namespace SteamGridDB.Xbox
 
                         if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
                         {
-                            if (gameData.ContainsKey("_embedded") && 
+                            if (gameData.ContainsKey("_embedded") &&
                                 gameData.GetNamedObject("_embedded").ContainsKey("product"))
                             {
                                 var product = gameData.GetNamedObject("_embedded").GetNamedObject("product");
-                                
+
                                 if (product.ContainsKey("title"))
                                 {
                                     return product.GetNamedString("title");
@@ -1276,6 +1288,185 @@ namespace SteamGridDB.Xbox
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error fetching GOG game name for {gogId}: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Fetches game name from Epic Games Store GraphQL API by namespace.
+        /// </summary>
+        /// <param name="epicNamespace">The Epic Games namespace.</param>
+        /// <returns>Game name or null if not found.</returns>
+        private async Task<string> GetEpicGameNameAsync(string epicNamespace)
+        {
+            try
+            {
+                // GraphQL query to get catalog offers by namespace
+                string query = @"
+                    query catalogQuery($namespace: String!) {
+                        Catalog {
+                            catalogOffers(namespace: $namespace, locale: ""en-US"") {
+                                elements {
+                                    title
+                                }
+                            }
+                        }
+                    }";
+
+                // Build JSON request body
+                string requestJson = $@"{{
+                    ""query"": ""{query.Replace("\r", "").Replace("\n", " ").Replace("\"", "\\\"")}"",
+                    ""variables"": {{
+                        ""namespace"": ""{epicNamespace}"",
+                    }}
+                }}";
+
+                using (var httpClient = new HttpClient())
+                {
+                    httpClient.DefaultRequestHeaders.Add("User-Agent", "SteamGridDB.Xbox/1.2");
+
+                    // Create POST request content
+                    var content = new HttpStringContent(
+                        requestJson,
+                        Windows.Storage.Streams.UnicodeEncoding.Utf8,
+                        "application/json"
+                    );
+
+                    var response = await httpClient.PostAsync(new Uri("https://store.epicgames.com/graphql"), content);
+
+                    // Most of the time this will return 403 because of CAPTCHA - not sure how to bypass it
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string responseJson = await response.Content.ReadAsStringAsync();
+
+                        if (JsonObject.TryParse(responseJson, out JsonObject responseData))
+                        {
+                            // Navigate through JSON: data -> Catalog -> catalogOffers -> elements
+                            if (responseData.ContainsKey("data"))
+                            {
+                                var data = responseData.GetNamedObject("data");
+
+                                if (data.ContainsKey("Catalog"))
+                                {
+                                    var catalog = data.GetNamedObject("Catalog");
+
+                                    if (catalog.ContainsKey("catalogOffers"))
+                                    {
+                                        var catalogOffers = catalog.GetNamedObject("catalogOffers");
+
+                                        if (catalogOffers.ContainsKey("elements"))
+                                        {
+                                            var elements = catalogOffers.GetNamedArray("elements");
+
+                                            // Get the first element (game)
+                                            if (elements.Count > 0)
+                                            {
+                                                var firstElement = elements.GetObjectAt(0);
+
+                                                if (firstElement.ContainsKey("title"))
+                                                {
+                                                    return firstElement.GetNamedString("title");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error fetching Epic game name for {epicNamespace}: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Downloads and parses the Ubisoft game list from GitHub.
+        /// </summary>
+        /// <returns>True if successful, false otherwise</returns>
+        private async Task<bool> LoadUbisoftGameListAsync()
+        {
+            if (ubisoftGameLookupCache != null)
+            {
+                return true;
+            }
+
+            try
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    var url = "https://raw.githubusercontent.com/Haoose/UPLAY_GAME_ID/refs/heads/master/README.md";
+                    var response = await httpClient.GetAsync(new Uri(url));
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return false;
+                    }
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    var lines = content.Split('\n');
+
+                    ubisoftGameLookupCache = new Dictionary<string, string>();
+
+                    foreach (var line in lines)
+                    {
+                        var trimmedLine = line.Trim();
+
+                        if (string.IsNullOrEmpty(trimmedLine))
+                        {
+                            continue;
+                        }
+
+                        // Format: "232 - Beyond Good and Evil™"
+                        var dashIndex = trimmedLine.IndexOf(" - ");
+
+                        if (dashIndex > 0)
+                        {
+                            var idPart = trimmedLine.Substring(0, dashIndex).Trim();
+                            var namePart = trimmedLine.Substring(dashIndex + 3).Trim();
+
+                            if (!string.IsNullOrEmpty(idPart) && !string.IsNullOrEmpty(namePart))
+                            {
+                                ubisoftGameLookupCache[idPart] = namePart;
+                            }
+                        }
+                    }
+
+                    return ubisoftGameLookupCache.Count > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading Ubisoft game list: {ex.Message}");
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Fetches game name from cached Ubisoft game list by Ubisoft ID.
+        /// </summary>
+        /// <param name="ubisoftId">The Ubisoft game ID</param>
+        /// <returns>Game name or null if not found</returns>
+        private async Task<string> GetUbisoftGameNameAsync(string ubisoftId)
+        {
+            try
+            {
+                await LoadUbisoftGameListAsync();
+
+                if (ubisoftGameLookupCache != null && ubisoftGameLookupCache.TryGetValue(ubisoftId, out string gameName))
+                {
+                    return gameName;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error fetching Ubisoft game name for {ubisoftId}: {ex.Message}");
             }
 
             return null;
