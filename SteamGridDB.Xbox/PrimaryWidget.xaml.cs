@@ -263,13 +263,12 @@ namespace SteamGridDB.Xbox
 
                                 if (platform == GamePlatform.Epic)
                                 {
-                                    // For Epic, entryId format is "epic:namespace:somethingElse"
-                                    // Namespace is what we are after as common external ID
+                                    // For Epic, entryId format is "epic:namespace:ID"
                                     var parts = entryId.Split(':');
 
                                     if (parts.Length >= 3)
                                     {
-                                        externalPlatformId = parts[1];
+                                        externalPlatformId = parts[2];
                                     }
                                 }
 
@@ -1294,84 +1293,28 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Fetches game name from Epic Games Store GraphQL API by namespace.
+        /// Fetches Epic Games Store game name from GitHub by external platform ID.
         /// </summary>
-        /// <param name="epicNamespace">The Epic Games namespace.</param>
+        /// <param name="epicId">The Epic Games Store ID.</param>
         /// <returns>Game name or null if not found.</returns>
-        private async Task<string> GetEpicGameNameAsync(string epicNamespace)
+        private async Task<string> GetEpicGameNameAsync(string epicId)
         {
             try
             {
-                // GraphQL query to get catalog offers by namespace
-                string query = @"
-                    query catalogQuery($namespace: String!) {
-                        Catalog {
-                            catalogOffers(namespace: $namespace, locale: ""en-US"") {
-                                elements {
-                                    title
-                                }
-                            }
-                        }
-                    }";
-
-                // Build JSON request body
-                string requestJson = $@"{{
-                    ""query"": ""{query.Replace("\r", "").Replace("\n", " ").Replace("\"", "\\\"")}"",
-                    ""variables"": {{
-                        ""namespace"": ""{epicNamespace}"",
-                    }}
-                }}";
-
                 using (var httpClient = new HttpClient())
                 {
-                    httpClient.DefaultRequestHeaders.Add("User-Agent", "SteamGridDB.Xbox/1.2");
+                    var url = $"https://raw.githubusercontent.com/nachoaldamav/items-tracker/refs/heads/main/database/items/{epicId}.json";
+                    var response = await httpClient.GetAsync(new Uri(url));
 
-                    // Create POST request content
-                    var content = new HttpStringContent(
-                        requestJson,
-                        Windows.Storage.Streams.UnicodeEncoding.Utf8,
-                        "application/json"
-                    );
-
-                    var response = await httpClient.PostAsync(new Uri("https://store.epicgames.com/graphql"), content);
-
-                    // Most of the time this will return 403 because of CAPTCHA - not sure how to bypass it
                     if (response.IsSuccessStatusCode)
                     {
-                        string responseJson = await response.Content.ReadAsStringAsync();
+                        var jsonContent = await response.Content.ReadAsStringAsync();
 
-                        if (JsonObject.TryParse(responseJson, out JsonObject responseData))
+                        if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
                         {
-                            // Navigate through JSON: data -> Catalog -> catalogOffers -> elements
-                            if (responseData.ContainsKey("data"))
+                            if (gameData.ContainsKey("title"))
                             {
-                                var data = responseData.GetNamedObject("data");
-
-                                if (data.ContainsKey("Catalog"))
-                                {
-                                    var catalog = data.GetNamedObject("Catalog");
-
-                                    if (catalog.ContainsKey("catalogOffers"))
-                                    {
-                                        var catalogOffers = catalog.GetNamedObject("catalogOffers");
-
-                                        if (catalogOffers.ContainsKey("elements"))
-                                        {
-                                            var elements = catalogOffers.GetNamedArray("elements");
-
-                                            // Get the first element (game)
-                                            if (elements.Count > 0)
-                                            {
-                                                var firstElement = elements.GetObjectAt(0);
-
-                                                if (firstElement.ContainsKey("title"))
-                                                {
-                                                    return firstElement.GetNamedString("title");
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                return gameData.GetNamedString("title");
                             }
                         }
                     }
@@ -1379,7 +1322,7 @@ namespace SteamGridDB.Xbox
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error fetching Epic game name for {epicNamespace}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error fetching Epic game name for {epicId}: {ex.Message}");
             }
 
             return null;
