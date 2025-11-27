@@ -29,6 +29,13 @@
             <Setter Property="BorderBrush" Value="#404040" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="TitleTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" FontWeight="Bold" FontSize="24"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="ContentDialogButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#2D2D2D" />

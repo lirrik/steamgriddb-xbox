@@ -299,6 +299,32 @@ namespace SteamGridDB.Xbox
                                     }
                                 }
 
+                                if (!hasSteamGridDBMatch)
+                                {
+                                    if (platform == GamePlatform.GOG)
+                                    {
+                                        var gogName = await GetGogGameNameAsync(externalPlatformId);
+
+                                        if (!string.IsNullOrEmpty(gogName))
+                                        {
+                                            gameName = gogName;
+                                        }
+                                    }
+                                    else if (platform == GamePlatform.Epic)
+                                    {
+
+                                    
+                                    }
+                                    else if (platform == GamePlatform.Ubisoft)
+                                    {
+                                    
+                                    }
+                                    else if (platform == GamePlatform.EA)
+                                    {
+                                        // TODO: Implement EA app name fetching if possible
+                                    }
+                                }
+
                                 // Add to temporary list instead of directly to GameEntries
                                 tempGameList.Add(new GameEntry
                                 {
@@ -1211,6 +1237,48 @@ namespace SteamGridDB.Xbox
 
                 System.Diagnostics.Debug.WriteLine($"Error in RestoreBackupAsync: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Fetches game name from GOG API by GOG ID.
+        /// </summary>
+        /// <param name="gogId">The GOG game ID</param>
+        /// <returns>Game name or null if not found</returns>
+        private async Task<string> GetGogGameNameAsync(string gogId)
+        {
+            try
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    var url = $"https://api.gog.com/v2/games/{gogId}";
+                    var response = await httpClient.GetAsync(new Uri(url));
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var jsonContent = await response.Content.ReadAsStringAsync();
+
+                        if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
+                        {
+                            if (gameData.ContainsKey("_embedded") && 
+                                gameData.GetNamedObject("_embedded").ContainsKey("product"))
+                            {
+                                var product = gameData.GetNamedObject("_embedded").GetNamedObject("product");
+                                
+                                if (product.ContainsKey("title"))
+                                {
+                                    return product.GetNamedString("title");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error fetching GOG game name for {gogId}: {ex.Message}");
+            }
+
+            return null;
         }
     }
 }
