@@ -361,9 +361,9 @@ namespace SteamGridDB.Xbox
                                     {
                                         if (platform == GamePlatform.GOG)
                                         {
-                                            if (!gogNameCache.TryGetValue(externalPlatformId, out gameName) || string.IsNullOrEmpty(gameName))
+                                            if (!gogNameCache.TryGetValue(externalPlatformId, out string gogName) || string.IsNullOrEmpty(gogName))
                                             {
-                                                var gogName = await GetGogGameNameAsync(externalPlatformId);
+                                                gogName = await GetGogGameNameAsync(externalPlatformId);
 
                                                 if (!string.IsNullOrEmpty(gogName))
                                                 {
@@ -374,9 +374,9 @@ namespace SteamGridDB.Xbox
                                         }
                                         else if (platform == GamePlatform.Epic)
                                         {
-                                            if (!epicNameCache.TryGetValue(externalPlatformId, out gameName) || string.IsNullOrEmpty(gameName))
+                                            if (!epicNameCache.TryGetValue(externalPlatformId, out string epicName) || string.IsNullOrEmpty(epicName))
                                             {
-                                                var epicName = await GetEpicGameNameAsync(externalPlatformId);
+                                                epicName = await GetEpicGameNameAsync(externalPlatformId);
 
                                                 if (!string.IsNullOrEmpty(epicName))
                                                 {
