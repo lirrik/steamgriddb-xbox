@@ -38,6 +38,9 @@ namespace SteamGridDB.Xbox
         private readonly string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
 
         private static Dictionary<string, string> ubisoftGameLookupCache = null;
+        private static readonly Dictionary<string, string> gogNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, string> epicNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HttpClient sharedHttpClient = new HttpClient();
 
         private string gridPanelHeaderText = "Select artwork";
         public string GridPanelHeaderText
@@ -161,164 +164,170 @@ namespace SteamGridDB.Xbox
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
                     var directoryNames = string.Join(", ", folders.Select(f => f.Name));
-                    StatusText.Text = $"Found {folders.Count} director{(folders.Count == 1 ? "y" : "ies")} ({directoryNames}). Loading...";
+                    StatusText.Text = $"Found {folders.Count} director{(folders.Count == 1 ? "y" : "ies")} ({directoryNames}). Loading and sorting...";
                 });
 
                 // Temporary list to collect games before sorting
                 var tempGameList = new List<GameEntry>();
 
-                foreach (var folder in folders)
+                // Check if API key is available
+                if (string.IsNullOrEmpty(steamGridDbApiKey))
                 {
-                    string directoryName = folder.Name;
+                    StatusText.Text = "Error: SteamGridDB API key is not set.";
+                }
 
-                    if (directoryName == "bnet")
+                using (var sgdbClient = new SteamGridDbClient(steamGridDbApiKey))
+                {
+                    foreach (var folder in folders)
                     {
-                        // Skip Battle.net folder as it is not currently supported - Xbox App does not store images here
-                        continue;
-                    }
+                        string directoryName = folder.Name;
 
-                    string manifestFileName = $"{directoryName}.manifest";
-
-                    try
-                    {
-                        // Try to get the manifest file
-                        StorageFile manifestFile = await folder.GetFileAsync(manifestFileName);
-
-                        // Read and parse the manifest JSON file
-                        string jsonContent = await FileIO.ReadTextAsync(manifestFile);
-
-
-                        if (JsonObject.TryParse(jsonContent, out JsonObject root))
+                        if (directoryName == "bnet")
                         {
-                            // Check if gameCache exists in the root
-                            if (!root.ContainsKey("gameCache"))
-                            {
-                                continue;
-                            }
+                            // Skip Battle.net folder as it is not currently supported - Xbox App does not store images here
+                            continue;
+                        }
 
-                            // Get the gameCache object
-                            if (root.GetNamedValue("gameCache").ValueType != JsonValueType.Object)
-                            {
-                                continue;
-                            }
+                        string manifestFileName = $"{directoryName}.manifest";
 
-                            JsonObject gameCache = root.GetNamedObject("gameCache");
+                        try
+                        {
+                            // Try to get the manifest file
+                            StorageFile manifestFile = await folder.GetFileAsync(manifestFileName);
 
-                            // Iterate through all entries in the gameCache
-                            foreach (var entry in gameCache)
+                            // Read and parse the manifest JSON file
+                            string jsonContent = await FileIO.ReadTextAsync(manifestFile);
+
+
+                            if (JsonObject.TryParse(jsonContent, out JsonObject root))
                             {
-                                // Skip the "version" property if it exists
-                                if (entry.Key == "version")
+                                // Check if gameCache exists in the root
+                                if (!root.ContainsKey("gameCache"))
                                 {
                                     continue;
                                 }
 
-                                // Only process entries that are objects
-                                if (entry.Value.ValueType != JsonValueType.Object)
+                                // Get the gameCache object
+                                if (root.GetNamedValue("gameCache").ValueType != JsonValueType.Object)
                                 {
                                     continue;
                                 }
 
-                                JsonObject entryObject = entry.Value.GetObject();
+                                JsonObject gameCache = root.GetNamedObject("gameCache");
 
-                                // Only process entries that have an "id" property
-                                if (!entryObject.ContainsKey("id"))
+                                // Iterate through all entries in the gameCache
+                                foreach (var entry in gameCache)
                                 {
-                                    continue;
-                                }
+                                    // Skip the "version" property if it exists
+                                    if (entry.Key == "version")
+                                    {
+                                        continue;
+                                    }
 
-                                // Get the ID from the "id" property (not from the key)
-                                string entryId = entryObject.GetNamedString("id");
+                                    // Only process entries that are objects
+                                    if (entry.Value.ValueType != JsonValueType.Object)
+                                    {
+                                        continue;
+                                    }
 
-                                // Parse addedDate - it's stored as a string in JSON
-                                string addedDateString = entryObject.GetNamedString("addedDate", "0");
-                                long timestamp = 0;
+                                    JsonObject entryObject = entry.Value.GetObject();
 
-                                if (!string.IsNullOrEmpty(addedDateString) && long.TryParse(addedDateString, out long parsedTimestamp))
-                                {
-                                    timestamp = parsedTimestamp;
-                                }
+                                    // Only process entries that have an "id" property
+                                    if (!entryObject.ContainsKey("id"))
+                                    {
+                                        continue;
+                                    }
 
-                                // Convert ID to image filename (replace : with _)
-                                string imageFileName = entryId.Replace(":", "_") + ".png";
-                                string backupFileName = entryId.Replace(":", "_") + ".bak";
-                                string imageName = imageFileName;
+                                    // Get the ID from the "id" property (not from the key)
+                                    string entryId = entryObject.GetNamedString("id");
 
-                                BitmapImage image = null;
-                                bool hasBackup = false;
+                                    // Parse addedDate - it's stored as a string in JSON
+                                    string addedDateString = entryObject.GetNamedString("addedDate", "0");
+                                    long timestamp = 0;
 
-                                // Check if backup exists
-                                try
-                                {
-                                    await folder.GetFileAsync(backupFileName);
-                                    hasBackup = true;
-                                }
-                                catch (FileNotFoundException)
-                                {
-                                    // Backup doesn't exist, that's okay
-                                }
+                                    if (!string.IsNullOrEmpty(addedDateString) && long.TryParse(addedDateString, out long parsedTimestamp))
+                                    {
+                                        timestamp = parsedTimestamp;
+                                    }
 
-                                // Load image on background thread, create BitmapImage on UI thread
-                                IRandomAccessStream imageStream = null;
-                                try
-                                {
-                                    StorageFile imageFile = await folder.GetFileAsync(imageFileName);
-                                    imageStream = await imageFile.OpenReadAsync();
+                                    // Convert ID to image filename (replace : with _)
+                                    string imageFileName = entryId.Replace(":", "_") + ".png";
+                                    string backupFileName = entryId.Replace(":", "_") + ".bak";
+                                    string imageName = imageFileName;
 
-                                    // Create and set BitmapImage on UI thread because it has to be owned by it
-                                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                                    BitmapImage image = null;
+                                    bool hasBackup = false;
+
+                                    // Check if backup exists
+                                    try
+                                    {
+                                        await folder.GetFileAsync(backupFileName);
+                                        hasBackup = true;
+                                    }
+                                    catch (FileNotFoundException)
+                                    {
+                                        // Backup doesn't exist, that's okay
+                                    }
+
+                                    // Load image on background thread, create BitmapImage on UI thread
+                                    IRandomAccessStream imageStream = null;
+                                    try
+                                    {
+                                        StorageFile imageFile = await folder.GetFileAsync(imageFileName);
+                                        imageStream = await imageFile.OpenReadAsync();
+
+                                        // Create and set BitmapImage on UI thread because it has to be owned by it
+                                        await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                                        {
+                                            try
+                                            {
+                                                image = new BitmapImage();
+                                                // Fire-and-forget: async call will complete in background
+                                                var _ = image.SetSourceAsync(imageStream);
+                                            }
+                                            catch
+                                            {
+                                                // Image loading failed, will be handled below
+                                                image = null;
+                                                imageStream?.Dispose();
+                                            }
+                                        });
+                                    }
+                                    catch (FileNotFoundException)
+                                    {
+                                        // Image doesn't exist, that's okay
+                                        imageName = "Not found";
+                                        imageStream?.Dispose();
+                                    }
+
+                                    // Try to fetch game name from SteamGridDB API
+                                    string gameName = "Unknown";
+                                    GamePlatform platform = GamePlatformHelper.FromXboxDirectory(directoryName);
+                                    string xboxPlatformId = entryId.Substring(entryId.IndexOf(':') + 1);
+                                    string externalPlatformId = xboxPlatformId;
+
+                                    if (platform == GamePlatform.Epic)
+                                    {
+                                        // For Epic, entryId format is "epic:namespace:ID"
+                                        var parts = entryId.Split(':');
+
+                                        if (parts.Length >= 3)
+                                        {
+                                            externalPlatformId = parts[2];
+                                        }
+                                    }
+
+                                    bool hasSteamGridDBMatch = false;
+
+                                    if (sgdbClient != null)
                                     {
                                         try
                                         {
-                                            image = new BitmapImage();
-                                            // Fire-and-forget: async call will complete in background
-                                            var _ = image.SetSourceAsync(imageStream);
-                                        }
-                                        catch
-                                        {
-                                            // Image loading failed, will be handled below
-                                            image = null;
-                                            imageStream?.Dispose();
-                                        }
-                                    });
-                                }
-                                catch (FileNotFoundException)
-                                {
-                                    // Image doesn't exist, that's okay
-                                    imageName = "Not found";
-                                    imageStream?.Dispose();
-                                }
+                                            string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(platform);
 
-                                // Try to fetch game name from SteamGridDB API
-                                string gameName = "Unknown";
-                                GamePlatform platform = GamePlatformHelper.FromXboxDirectory(directoryName);
-                                string xboxPlatformId = entryId.Substring(entryId.IndexOf(':') + 1);
-                                string externalPlatformId = xboxPlatformId;
-
-                                if (platform == GamePlatform.Epic)
-                                {
-                                    // For Epic, entryId format is "epic:namespace:ID"
-                                    var parts = entryId.Split(':');
-
-                                    if (parts.Length >= 3)
-                                    {
-                                        externalPlatformId = parts[2];
-                                    }
-                                }
-
-                                bool hasSteamGridDBMatch = false;
-
-                                if (!string.IsNullOrEmpty(steamGridDbApiKey))
-                                {
-                                    try
-                                    {
-                                        string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(platform);
-
-                                        if (!string.IsNullOrEmpty(platformString))
-                                        {
-                                            using (var client = new SteamGridDbClient(steamGridDbApiKey))
+                                            if (!string.IsNullOrEmpty(platformString))
                                             {
-                                                var gameInfo = await client.GetGameByPlatformIdAsync(platformString, externalPlatformId);
+                                                var gameInfo = await sgdbClient.GetGameByPlatformIdAsync(platformString, externalPlatformId);
 
                                                 if (gameInfo != null && !string.IsNullOrEmpty(gameInfo.Name))
                                                 {
@@ -327,75 +336,83 @@ namespace SteamGridDB.Xbox
                                                 }
                                             }
                                         }
+                                        catch (Exception ex)
+                                        {
+                                            // Log but don't fail - game name is optional
+                                            System.Diagnostics.Debug.WriteLine($"Could not fetch game name for {entryId}: {ex.Message}");
+                                        }
                                     }
-                                    catch (Exception ex)
+
+                                    if (!hasSteamGridDBMatch)
                                     {
-                                        // Log but don't fail - game name is optional
-                                        System.Diagnostics.Debug.WriteLine($"Could not fetch game name for {entryId}: {ex.Message}");
+                                        if (platform == GamePlatform.GOG)
+                                        {
+                                            if (!gogNameCache.TryGetValue(externalPlatformId, out gameName) || string.IsNullOrEmpty(gameName))
+                                            {
+                                                var gogName = await GetGogGameNameAsync(externalPlatformId);
+
+                                                if (!string.IsNullOrEmpty(gogName))
+                                                {
+                                                    gogNameCache[externalPlatformId] = gogName;
+                                                    gameName = gogName;
+                                                }
+                                            }
+                                        }
+                                        else if (platform == GamePlatform.Epic)
+                                        {
+                                            if (!epicNameCache.TryGetValue(externalPlatformId, out gameName) || string.IsNullOrEmpty(gameName))
+                                            {
+                                                var epicName = await GetEpicGameNameAsync(externalPlatformId);
+
+                                                if (!string.IsNullOrEmpty(epicName))
+                                                {
+                                                    epicNameCache[externalPlatformId] = epicName;
+                                                    gameName = epicName;
+                                                }
+                                            }
+                                        }
+                                        else if (platform == GamePlatform.Ubisoft)
+                                        {
+                                            var ubisoftName = await GetUbisoftGameNameAsync(externalPlatformId);
+
+                                            if (!string.IsNullOrEmpty(ubisoftName))
+                                            {
+                                                gameName = ubisoftName;
+                                            }
+                                        }
+                                        else if (platform == GamePlatform.EA)
+                                        {
+                                            // TODO: Implement EA App name fetching if possible
+                                        }
                                     }
+
+                                    // Add to temporary list instead of directly to GameEntries
+                                    tempGameList.Add(new GameEntry
+                                    {
+                                        Name = gameName,
+                                        XboxPlatformId = xboxPlatformId,
+                                        ExternalPlatformId = externalPlatformId,
+                                        ImageFileName = imageName,
+                                        Platform = platform,
+                                        AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
+                                        Directory = directoryName,
+                                        Image = image,
+                                        HasBackup = hasBackup,
+                                        HasSteamGridDBMatch = hasSteamGridDBMatch
+                                    });
                                 }
-
-                                if (!hasSteamGridDBMatch)
-                                {
-                                    if (platform == GamePlatform.GOG)
-                                    {
-                                        var gogName = await GetGogGameNameAsync(externalPlatformId);
-
-                                        if (!string.IsNullOrEmpty(gogName))
-                                        {
-                                            gameName = gogName;
-                                        }
-                                    }
-                                    else if (platform == GamePlatform.Epic)
-                                    {
-                                        var epicName = await GetEpicGameNameAsync(externalPlatformId);
-
-                                        if (!string.IsNullOrEmpty(epicName))
-                                        {
-                                            gameName = epicName;
-                                        }
-                                    }
-                                    else if (platform == GamePlatform.Ubisoft)
-                                    {
-                                        var ubisoftName = await GetUbisoftGameNameAsync(externalPlatformId);
-
-                                        if (!string.IsNullOrEmpty(ubisoftName))
-                                        {
-                                            gameName = ubisoftName;
-                                        }
-                                    }
-                                    else if (platform == GamePlatform.EA)
-                                    {
-                                        // TODO: Implement EA App name fetching if possible
-                                    }
-                                }
-
-                                // Add to temporary list instead of directly to GameEntries
-                                tempGameList.Add(new GameEntry
-                                {
-                                    Name = gameName,
-                                    XboxPlatformId = xboxPlatformId,
-                                    ExternalPlatformId = externalPlatformId,
-                                    ImageFileName = imageName,
-                                    Platform = platform,
-                                    AddedDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).LocalDateTime,
-                                    Directory = directoryName,
-                                    Image = image,
-                                    HasBackup = hasBackup,
-                                    HasSteamGridDBMatch = hasSteamGridDBMatch
-                                });
                             }
                         }
-                    }
-                    catch (FileNotFoundException)
-                    {
-                        // Manifest file doesn't exist in this directory, skip it
-                        continue;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Log error but continue processing other directories
-                        System.Diagnostics.Debug.WriteLine($"Error processing {directoryName}: {ex.Message}");
+                        catch (FileNotFoundException)
+                        {
+                            // Manifest file doesn't exist in this directory, skip it
+                            continue;
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log error but continue processing other directories
+                            System.Diagnostics.Debug.WriteLine($"Error processing {directoryName}: {ex.Message}");
+                        }
                     }
                 }
 
@@ -465,20 +482,20 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Automatically downloads the highest-scored artwork for games with known names and no backup
+        /// Automatically downloads the highest-scored artwork for games with a match in SteamGridDB and no backup.
         /// </summary>
         private async Task FixLibraryAsync()
         {
             try
             {
-                // Get eligible games: known name and no backup
+                // Get eligible games: there is a match in SteamGridDB and no backup
                 var eligibleGames = GameEntries.Where(g => g.HasSteamGridDBMatch && !g.HasBackup).ToList();
 
                 if (eligibleGames.Count == 0)
                 {
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                     {
-                        StatusText.Text = "No eligible game artworks to fix (all games either have unknown names or already have backups)";
+                        StatusText.Text = "No eligible artworks to fix (all games either were already modified or have no match in SteamGridDB)";
                     });
 
                     return;
@@ -493,29 +510,29 @@ namespace SteamGridDB.Xbox
                 int skipCount = 0;
                 int errorCount = 0;
 
-                foreach (var game in eligibleGames)
+                using (var client = new SteamGridDbClient(steamGridDbApiKey))
                 {
-                    try
+                    foreach (var game in eligibleGames)
                     {
-                        await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                        try
                         {
-                            StatusText.Text = $"Processing {game.Name} ({successCount + skipCount + errorCount + 1}/{eligibleGames.Count})...";
-                        });
+                            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                StatusText.Text = $"Processing {game.Name} ({successCount + skipCount + errorCount + 1}/{eligibleGames.Count})...";
+                            });
 
-                        // Get the platform string for SteamGridDB API
-                        string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
+                            // Get the platform string for SteamGridDB API
+                            string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(game.Platform);
 
-                        if (string.IsNullOrEmpty(platformString))
-                        {
-                            skipCount++;
-                            System.Diagnostics.Debug.WriteLine($"Skipping {game.Name}: unsupported platform");
+                            if (string.IsNullOrEmpty(platformString))
+                            {
+                                skipCount++;
+                                System.Diagnostics.Debug.WriteLine($"Skipping {game.Name}: unsupported platform");
 
-                            continue;
-                        }
+                                continue;
+                            }
 
-                        // Fetch grids and icons from SteamGridDB
-                        using (var client = new SteamGridDbClient(steamGridDbApiKey))
-                        {
+                            // Fetch grids and icons from SteamGridDB
                             var grids = await client.GetSquareGridsByPlatformIdAsync(platformString, game.XboxPlatformId);
                             var icons = await client.GetSquareIconsByPlatformIdAsync(platformString, game.XboxPlatformId);
 
@@ -557,11 +574,11 @@ namespace SteamGridDB.Xbox
                                 System.Diagnostics.Debug.WriteLine($"No artwork found for {game.Name}");
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        errorCount++;
-                        System.Diagnostics.Debug.WriteLine($"Error processing {game.Name}: {ex.Message}");
+                        catch (Exception ex)
+                        {
+                            errorCount++;
+                            System.Diagnostics.Debug.WriteLine($"Error processing {game.Name}: {ex.Message}");
+                        }
                     }
                 }
 
@@ -1331,26 +1348,23 @@ namespace SteamGridDB.Xbox
         {
             try
             {
-                using (var httpClient = new HttpClient())
+                var url = $"https://api.gog.com/v2/games/{gogId}";
+                var response = await sharedHttpClient.GetAsync(new Uri(url));
+
+                if (response.IsSuccessStatusCode)
                 {
-                    var url = $"https://api.gog.com/v2/games/{gogId}";
-                    var response = await httpClient.GetAsync(new Uri(url));
+                    var jsonContent = await response.Content.ReadAsStringAsync();
 
-                    if (response.IsSuccessStatusCode)
+                    if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
                     {
-                        var jsonContent = await response.Content.ReadAsStringAsync();
-
-                        if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
+                        if (gameData.ContainsKey("_embedded") &&
+                            gameData.GetNamedObject("_embedded").ContainsKey("product"))
                         {
-                            if (gameData.ContainsKey("_embedded") &&
-                                gameData.GetNamedObject("_embedded").ContainsKey("product"))
-                            {
-                                var product = gameData.GetNamedObject("_embedded").GetNamedObject("product");
+                            var product = gameData.GetNamedObject("_embedded").GetNamedObject("product");
 
-                                if (product.ContainsKey("title"))
-                                {
-                                    return product.GetNamedString("title");
-                                }
+                            if (product.ContainsKey("title"))
+                            {
+                                return product.GetNamedString("title");
                             }
                         }
                     }
@@ -1373,21 +1387,18 @@ namespace SteamGridDB.Xbox
         {
             try
             {
-                using (var httpClient = new HttpClient())
+                var url = $"https://raw.githubusercontent.com/nachoaldamav/items-tracker/refs/heads/main/database/items/{epicId}.json";
+                var response = await sharedHttpClient.GetAsync(new Uri(url));
+
+                if (response.IsSuccessStatusCode)
                 {
-                    var url = $"https://raw.githubusercontent.com/nachoaldamav/items-tracker/refs/heads/main/database/items/{epicId}.json";
-                    var response = await httpClient.GetAsync(new Uri(url));
+                    var jsonContent = await response.Content.ReadAsStringAsync();
 
-                    if (response.IsSuccessStatusCode)
+                    if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
                     {
-                        var jsonContent = await response.Content.ReadAsStringAsync();
-
-                        if (JsonObject.TryParse(jsonContent, out JsonObject gameData))
+                        if (gameData.ContainsKey("title"))
                         {
-                            if (gameData.ContainsKey("title"))
-                            {
-                                return gameData.GetNamedString("title");
-                            }
+                            return gameData.GetNamedString("title");
                         }
                     }
                 }
@@ -1413,47 +1424,44 @@ namespace SteamGridDB.Xbox
 
             try
             {
-                using (var httpClient = new HttpClient())
+                var url = "https://raw.githubusercontent.com/Haoose/UPLAY_GAME_ID/refs/heads/master/README.md";
+                var response = await sharedHttpClient.GetAsync(new Uri(url));
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    var url = "https://raw.githubusercontent.com/Haoose/UPLAY_GAME_ID/refs/heads/master/README.md";
-                    var response = await httpClient.GetAsync(new Uri(url));
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return false;
-                    }
-
-                    var content = await response.Content.ReadAsStringAsync();
-                    var lines = content.Split('\n');
-
-                    ubisoftGameLookupCache = new Dictionary<string, string>();
-
-                    foreach (var line in lines)
-                    {
-                        var trimmedLine = line.Trim();
-
-                        if (string.IsNullOrEmpty(trimmedLine))
-                        {
-                            continue;
-                        }
-
-                        // Format: "232 - Beyond Good and Evil™"
-                        var dashIndex = trimmedLine.IndexOf(" - ");
-
-                        if (dashIndex > 0)
-                        {
-                            var idPart = trimmedLine.Substring(0, dashIndex).Trim();
-                            var namePart = trimmedLine.Substring(dashIndex + 3).Trim();
-
-                            if (!string.IsNullOrEmpty(idPart) && !string.IsNullOrEmpty(namePart))
-                            {
-                                ubisoftGameLookupCache[idPart] = namePart;
-                            }
-                        }
-                    }
-
-                    return ubisoftGameLookupCache.Count > 0;
+                    return false;
                 }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var lines = content.Split('\n');
+
+                ubisoftGameLookupCache = new Dictionary<string, string>();
+
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+
+                    if (string.IsNullOrEmpty(trimmedLine))
+                    {
+                        continue;
+                    }
+
+                    // Format: "232 - Beyond Good and Evil™"
+                    var dashIndex = trimmedLine.IndexOf(" - ");
+
+                    if (dashIndex > 0)
+                    {
+                        var idPart = trimmedLine.Substring(0, dashIndex).Trim();
+                        var namePart = trimmedLine.Substring(dashIndex + 3).Trim();
+
+                        if (!string.IsNullOrEmpty(idPart) && !string.IsNullOrEmpty(namePart))
+                        {
+                            ubisoftGameLookupCache[idPart] = namePart;
+                        }
+                    }
+                }
+
+                return ubisoftGameLookupCache.Count > 0;
             }
             catch (Exception ex)
             {
