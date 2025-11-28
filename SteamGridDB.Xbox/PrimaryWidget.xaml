@@ -519,7 +519,8 @@
                     FontSize="14"
                     FontWeight="SemiBold"
                     Foreground="#FFFFFF"
-                    Text="Manual search" />
+                    Text="{x:Bind SearchPanelHeaderText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
             </Grid>
 
             <!--  Search Box and Results  -->

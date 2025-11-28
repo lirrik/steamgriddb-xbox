@@ -23,7 +23,7 @@ using SteamGridDB.Xbox.Services.SteamGridDB.Models;
 namespace SteamGridDB.Xbox
 {
     /// <summary>
-    /// Primary widget page that loads and displays Xbox app third-party games.
+    /// Primary widget page that loads and displays Xbox App third-party games.
     /// </summary>
     public sealed partial class PrimaryWidget : Page, INotifyPropertyChanged
     {
@@ -49,6 +49,20 @@ namespace SteamGridDB.Xbox
                 {
                     gridPanelHeaderText = value;
                     OnPropertyChanged(nameof(GridPanelHeaderText));
+                }
+            }
+        }
+
+        private string searchPanelHeaderText = "Manual search";
+        public string SearchPanelHeaderText
+        {
+            get => searchPanelHeaderText;
+            set
+            {
+                if (searchPanelHeaderText != value)
+                {
+                    searchPanelHeaderText = value;
+                    OnPropertyChanged(nameof(SearchPanelHeaderText));
                 }
             }
         }
@@ -122,7 +136,7 @@ namespace SteamGridDB.Xbox
                 {
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                     {
-                        StatusText.Text = "ThirdPartyLibraries folder not found. Make sure games are added to Xbox app.";
+                        StatusText.Text = "ThirdPartyLibraries folder not found. Make sure games are added to Xbox App.";
                         GameEntriesListView.Visibility = Visibility.Collapsed;
                     });
 
@@ -146,7 +160,8 @@ namespace SteamGridDB.Xbox
 
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                 {
-                    StatusText.Text = $"Found {folders.Count} director{(folders.Count == 1 ? "y" : "ies")}. Loading...";
+                    var directoryNames = string.Join(", ", folders.Select(f => f.Name));
+                    StatusText.Text = $"Found {folders.Count} director{(folders.Count == 1 ? "y" : "ies")} ({directoryNames}). Loading...";
                 });
 
                 // Temporary list to collect games before sorting
@@ -158,7 +173,7 @@ namespace SteamGridDB.Xbox
 
                     if (directoryName == "bnet")
                     {
-                        // Skip Battle.net folder as it is not currently supported - Xbox app does not store images here
+                        // Skip Battle.net folder as it is not currently supported - Xbox App does not store images here
                         continue;
                     }
 
@@ -255,7 +270,7 @@ namespace SteamGridDB.Xbox
                                     {
                                         try
                                         {
-                                    image = new BitmapImage();
+                                            image = new BitmapImage();
                                             // Fire-and-forget: async call will complete in background
                                             var _ = image.SetSourceAsync(imageStream);
                                         }
@@ -351,7 +366,7 @@ namespace SteamGridDB.Xbox
                                     }
                                     else if (platform == GamePlatform.EA)
                                     {
-                                        // TODO: Implement EA app name fetching if possible
+                                        // TODO: Implement EA App name fetching if possible
                                     }
                                 }
 
@@ -424,7 +439,7 @@ namespace SteamGridDB.Xbox
             ContentDialog confirmDialog = new ContentDialog
             {
                 Title = "Fix my library",
-                Content = "This will automatically download the highest-scored artwork from SteamGridDB for all known games that haven't been manually modified yet.\n\n" +
+                Content = "This will automatically download the highest-scored artwork from SteamGridDB for all games that have a direct SteamGridDB match and have not been manually modified yet.\n\n" +
                           "Original images will be backed up and can be restored later.\n\n" +
                           "Do you want to continue?",
                 PrimaryButtonText = "Fix my library",
@@ -457,7 +472,7 @@ namespace SteamGridDB.Xbox
             try
             {
                 // Get eligible games: known name and no backup
-                var eligibleGames = GameEntries.Where(g => g.Name != "Unknown" && !g.HasBackup).ToList();
+                var eligibleGames = GameEntries.Where(g => g.HasSteamGridDBMatch && !g.HasBackup).ToList();
 
                 if (eligibleGames.Count == 0)
                 {
@@ -668,19 +683,19 @@ namespace SteamGridDB.Xbox
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                     {
                         try
-                    {
-                        var newImage = new BitmapImage();
+                        {
+                            var newImage = new BitmapImage();
                             // Fire-and-forget: async call will complete in background
                             var _ = newImage.SetSourceAsync(stream);
 
-                        game.Image = newImage;
-                        game.ImageFileName = imageFileName;
-                        game.HasBackup = backupExists;
+                            game.Image = newImage;
+                            game.ImageFileName = imageFileName;
+                            game.HasBackup = backupExists;
 
-                        if (updateStatusText)
-                        {
-                            StatusText.Text = $"Image {imageFileName} updated successfully";
-                        }
+                            if (updateStatusText)
+                            {
+                                StatusText.Text = $"Image {imageFileName} updated successfully";
+                            }
                         }
                         catch
                         {
@@ -1101,8 +1116,28 @@ namespace SteamGridDB.Xbox
         /// </summary>
         private async Task ShowSearchPanelAsync()
         {
+            // Update header with game information
+            if (currentSelectedGame != null)
+            {
+                SearchPanelHeaderText = $"Manual search for {currentSelectedGame.Platform} game (ID: {currentSelectedGame.ExternalPlatformId})";
+            }
+            else
+            {
+                SearchPanelHeaderText = "Manual search";
+            }
+
             GameSearchPanel.Visibility = Visibility.Visible;
-            GameSearchBox.Text = "";
+
+            // Prefill search box with game name if it's not "Unknown"
+            if (currentSelectedGame != null && currentSelectedGame.Name != "Unknown")
+            {
+                GameSearchBox.Text = currentSelectedGame.Name;
+            }
+            else
+            {
+                GameSearchBox.Text = "";
+            }
+
             SearchResultsListView.Items.Clear();
             SearchPanelStatus.Text = "Enter a game name to search";
 
@@ -1125,6 +1160,12 @@ namespace SteamGridDB.Xbox
 
             // Focus search box
             GameSearchBox.Focus(FocusState.Programmatic);
+
+            // Select all text if prefilled
+            if (!string.IsNullOrEmpty(GameSearchBox.Text))
+            {
+                GameSearchBox.SelectAll();
+            }
         }
 
         /// <summary>
@@ -1230,7 +1271,7 @@ namespace SteamGridDB.Xbox
                     await backupFile.RenameAsync(imageFileName, NameCollisionOption.ReplaceExisting);
 
                     // Reload the image in the UI - open stream before dispatching to UI thread
-                        var imageFile = await gameFolder.GetFileAsync(imageFileName);
+                    var imageFile = await gameFolder.GetFileAsync(imageFileName);
                     var stream = await imageFile.OpenReadAsync();
 
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
@@ -1241,11 +1282,11 @@ namespace SteamGridDB.Xbox
                             // Fire-and-forget: async call will complete in background
                             var _ = restoredImage.SetSourceAsync(stream);
 
-                        game.Image = restoredImage;
-                        game.ImageFileName = imageFileName;
-                        game.HasBackup = false; // Backup no longer exists
+                            game.Image = restoredImage;
+                            game.ImageFileName = imageFileName;
+                            game.HasBackup = false; // Backup no longer exists
 
-                        StatusText.Text = $"Backup restored for {game.ImageFileName ?? game.XboxPlatformId}";
+                            StatusText.Text = $"Backup restored for {game.ImageFileName ?? game.XboxPlatformId}";
                         }
                         catch
                         {
