@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 using Windows.Data.Json;
 using Windows.Storage;
+using Windows.Storage.Streams;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -242,17 +243,35 @@ namespace SteamGridDB.Xbox
                                     // Backup doesn't exist, that's okay
                                 }
 
+                                // Load image on background thread, create BitmapImage on UI thread
+                                IRandomAccessStream imageStream = null;
                                 try
                                 {
                                     StorageFile imageFile = await folder.GetFileAsync(imageFileName);
+                                    imageStream = await imageFile.OpenReadAsync();
+
+                                    // Create and set BitmapImage on UI thread because it has to be owned by it
+                                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                                    {
+                                        try
+                                        {
                                     image = new BitmapImage();
-                                    var stream = await imageFile.OpenReadAsync();
-                                    await image.SetSourceAsync(stream);
+                                            // Fire-and-forget: async call will complete in background
+                                            var _ = image.SetSourceAsync(imageStream);
+                                        }
+                                        catch
+                                        {
+                                            // Image loading failed, will be handled below
+                                            image = null;
+                                            imageStream?.Dispose();
+                                        }
+                                    });
                                 }
                                 catch (FileNotFoundException)
                                 {
                                     // Image doesn't exist, that's okay
                                     imageName = "Not found";
+                                    imageStream?.Dispose();
                                 }
 
                                 // Try to fetch game name from SteamGridDB API
@@ -643,15 +662,16 @@ namespace SteamGridDB.Xbox
                     var imageFile = await gameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
                     await FileIO.WriteBufferAsync(imageFile, imageBytes);
 
-                    // Reload the image in the UI
-                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+                    // Reload the image in the UI - open stream before dispatching to UI thread
+                    var stream = await imageFile.OpenReadAsync();
+
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        try
                     {
                         var newImage = new BitmapImage();
-
-                        using (var stream = await imageFile.OpenReadAsync())
-                        {
-                            await newImage.SetSourceAsync(stream);
-                        }
+                            // Fire-and-forget: async call will complete in background
+                            var _ = newImage.SetSourceAsync(stream);
 
                         game.Image = newImage;
                         game.ImageFileName = imageFileName;
@@ -660,6 +680,11 @@ namespace SteamGridDB.Xbox
                         if (updateStatusText)
                         {
                             StatusText.Text = $"Image {imageFileName} updated successfully";
+                        }
+                        }
+                        catch
+                        {
+                            stream?.Dispose();
                         }
                     });
 
@@ -1204,22 +1229,28 @@ namespace SteamGridDB.Xbox
                     var backupFile = await gameFolder.GetFileAsync(backupFileName);
                     await backupFile.RenameAsync(imageFileName, NameCollisionOption.ReplaceExisting);
 
-                    // Reload the image in the UI
-                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
-                    {
-                        var restoredImage = new BitmapImage();
+                    // Reload the image in the UI - open stream before dispatching to UI thread
                         var imageFile = await gameFolder.GetFileAsync(imageFileName);
+                    var stream = await imageFile.OpenReadAsync();
 
-                        using (var stream = await imageFile.OpenReadAsync())
+                    await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        try
                         {
-                            await restoredImage.SetSourceAsync(stream);
-                        }
+                            var restoredImage = new BitmapImage();
+                            // Fire-and-forget: async call will complete in background
+                            var _ = restoredImage.SetSourceAsync(stream);
 
                         game.Image = restoredImage;
                         game.ImageFileName = imageFileName;
                         game.HasBackup = false; // Backup no longer exists
 
                         StatusText.Text = $"Backup restored for {game.ImageFileName ?? game.XboxPlatformId}";
+                        }
+                        catch
+                        {
+                            stream?.Dispose();
+                        }
                     });
                 }
                 catch (FileNotFoundException)
