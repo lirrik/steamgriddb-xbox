@@ -527,13 +527,94 @@
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
+                <!--  Current Game Display  -->
+                <Border
+                    Grid.Row="0"
+                    Margin="16,16,16,8"
+                    Padding="16,12"
+                    Background="#252525"
+                    CornerRadius="6">
+                    <Grid x:Name="SearchCurrentGameDisplay">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!--  Game image - Modern rounded  -->
+                        <Grid
+                            Grid.Column="0"
+                            Width="80"
+                            Height="80"
+                            CornerRadius="6">
+                            <Grid.Clip>
+                                <RectangleGeometry Rect="0,0,80,80" />
+                            </Grid.Clip>
+                            <Border Background="#2D2D2D" CornerRadius="6">
+                                <Grid>
+                                    <Image
+                                        Source="{x:Bind CurrentSelectedGame.Image, Mode=OneWay}"
+                                        Stretch="UniformToFill"
+                                        Visibility="{x:Bind CurrentSelectedGame.ImageVisibility, Mode=OneWay}" />
+                                    <FontIcon
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontFamily="Segoe MDL2 Assets"
+                                        FontSize="32"
+                                        Foreground="#66FFFFFF"
+                                        Glyph="&#xE7C5;"
+                                        Visibility="{x:Bind CurrentSelectedGame.PlaceholderVisibility, Mode=OneWay}" />
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!--  Game info - Modern typography  -->
+                        <StackPanel
+                            Grid.Column="1"
+                            Margin="16,0,0,0"
+                            VerticalAlignment="Center">
+                            <!--  Game Name  -->
+                            <TextBlock
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Foreground="#FFFFFF"
+                                Text="{x:Bind CurrentSelectedGame.Name, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap" />
+
+                            <!--  Image Filename  -->
+                            <TextBlock
+                                Margin="0,2,0,0"
+                                FontSize="12"
+                                Foreground="#99FFFFFF"
+                                Opacity="0.9"
+                                Text="{x:Bind CurrentSelectedGame.ImageFileName, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap" />
+
+                            <!--  Platform info  -->
+                            <TextBlock
+                                Margin="0,2,0,0"
+                                FontSize="12"
+                                Foreground="#99FFFFFF"
+                                Opacity="0.8">
+                                <Run Text="{x:Bind CurrentSelectedGame.Platform, Mode=OneWay}" />
+                                <Run Text=" • " />
+                                <Run Text="{x:Bind CurrentSelectedGame.ExternalPlatformId, Mode=OneWay}" />
+                                <Run Text=" • " />
+                                <Run Text="{x:Bind CurrentSelectedGame.AddedDateFormatted, Mode=OneWay}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
                 <!--  Search Box  -->
                 <StackPanel
-                    Grid.Row="0"
-                    Padding="16,16,16,0"
+                    Grid.Row="1"
+                    Padding="16,8,16,0"
                     Spacing="0">
                     <Grid>
                         <TextBox
@@ -578,7 +659,7 @@
                 </StackPanel>
 
                 <!--  Search Results  -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <Grid>
                         <StackPanel x:Name="SearchResultsContainer" Padding="16,8,16,16">
                             <!--  Results List  -->
