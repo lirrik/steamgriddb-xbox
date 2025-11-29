@@ -333,28 +333,25 @@ namespace SteamGridDB.Xbox
 
                                     bool hasSteamGridDBMatch = false;
 
-                                    if (sgdbClient != null)
+                                    try
                                     {
-                                        try
+                                        string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(platform);
+
+                                        if (!string.IsNullOrEmpty(platformString))
                                         {
-                                            string platformString = GamePlatformHelper.GamePlatformToSGDBApiString(platform);
+                                            var gameInfo = await sgdbClient.GetGameByPlatformIdAsync(platformString, externalPlatformId);
 
-                                            if (!string.IsNullOrEmpty(platformString))
+                                            if (gameInfo != null && !string.IsNullOrEmpty(gameInfo.Name))
                                             {
-                                                var gameInfo = await sgdbClient.GetGameByPlatformIdAsync(platformString, externalPlatformId);
-
-                                                if (gameInfo != null && !string.IsNullOrEmpty(gameInfo.Name))
-                                                {
-                                                    gameName = gameInfo.Name;
-                                                    hasSteamGridDBMatch = true;
-                                                }
+                                                gameName = gameInfo.Name;
+                                                hasSteamGridDBMatch = true;
                                             }
                                         }
-                                        catch (Exception ex)
-                                        {
-                                            // Log but don't fail - game name is optional
-                                            System.Diagnostics.Debug.WriteLine($"Could not fetch game name for {entryId}: {ex.Message}");
-                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        // Log but don't fail - game name is optional, default is "Unknown"
+                                        System.Diagnostics.Debug.WriteLine($"Could not fetch game name for {entryId}: {ex.Message}");
                                     }
 
                                     if (!hasSteamGridDBMatch)
@@ -440,7 +437,7 @@ namespace SteamGridDB.Xbox
 
                 // Sort games alphabetically by name, with "Unknown" at the end
                 var sortedGames = tempGameList
-                    .OrderBy(g => g.Name == unknownName? 1 : 0)
+                    .OrderBy(g => g.Name == unknownName ? 1 : 0)
                     .ThenBy(g => g.Name)
                     .ToList();
 
@@ -653,7 +650,7 @@ namespace SteamGridDB.Xbox
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error downloading image for {game.Name}: {ex.Message}");
-                
+
                 return false;
             }
         }
