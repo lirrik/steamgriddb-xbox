@@ -371,6 +371,10 @@ namespace SteamGridDB.Xbox
                                                     gameName = gogName;
                                                 }
                                             }
+                                            else
+                                            {
+                                                gameName = gogName;
+                                            }
                                         }
                                         else if (platform == GamePlatform.Epic)
                                         {
@@ -383,6 +387,10 @@ namespace SteamGridDB.Xbox
                                                     epicNameCache[externalPlatformId] = epicName;
                                                     gameName = epicName;
                                                 }
+                                            }
+                                            else
+                                            {
+                                                gameName = epicName;
                                             }
                                         }
                                         else if (platform == GamePlatform.Ubisoft)
