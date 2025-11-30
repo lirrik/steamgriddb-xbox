@@ -905,6 +905,24 @@ namespace SteamGridDB.Xbox
             int gridCount = grids?.Count ?? 0;
             int iconCount = icons?.Count ?? 0;
             GridPanelStatus.Text = $"Found {gridCount} grid{(gridCount == 1 ? "" : "s")} and {iconCount} icon{(iconCount == 1 ? "" : "s")} ({allArtworks.Count} total)";
+
+            // Focus the first artwork for controller navigation
+            var _ = Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+            {
+                if (GridImagesView.Items.Count > 0)
+                {
+                    // Force layout update so containers are realized
+                    GridImagesView.UpdateLayout();
+                    
+                    // Get the first item container and focus it
+                    var firstContainer = GridImagesView.ContainerFromIndex(0) as GridViewItem;
+
+                    if (firstContainer != null)
+                    {
+                        firstContainer.Focus(FocusState.Programmatic);
+                    }
+                }
+            });
         }
 
         /// <summary>
