@@ -92,6 +92,7 @@
                     Orientation="Horizontal"
                     Spacing="6">
                     <Button
+                        x:Name="FixLibraryButton"
                         Width="40"
                         Height="40"
                         Click="FixLibraryButton_Click"
@@ -140,7 +141,7 @@
                     <TextBlock
                         HorizontalAlignment="Center"
                         Foreground="#99FFFFFF"
-                        Text="Please grant file system access to SteamGridDB for Xbox to view your Xbox app library (Settings &gt; Privacy &amp; security &gt; File system &gt; Let apps access your file system)"
+                        Text="Please grant file system access to SteamGridDB for Xbox to view your Xbox App library (Settings &gt; Privacy &amp; security &gt; File system &gt; Let apps access your file system)"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                 </StackPanel>
@@ -160,6 +161,7 @@
                             <Setter Property="Margin" Value="0,0,0,4" />
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsTabStop" Value="False" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListViewItem">
@@ -256,8 +258,8 @@
 
                                     <!--  Platform info  -->
                                     <TextBlock
-                                        Margin="0,2,0,0"
-                                        FontSize="12"
+                                        Margin="0,4,0,0"
+                                        FontSize="10"
                                         Foreground="#99FFFFFF"
                                         Opacity="0.8">
                                         <Run Text="{x:Bind Platform, Mode=OneWay}" />
@@ -291,7 +293,7 @@
 
                                     <!--  Edit/Search button container - ensures alignment  -->
                                     <Grid Width="40" Height="40">
-                                        <!--  Search button (for Unknown games)  -->
+                                        <!--  Search button (for games without direct match)  -->
                                         <Button
                                             Width="40"
                                             Height="40"
@@ -393,20 +395,6 @@
                     Foreground="#FFFFFF"
                     Text="{x:Bind GridPanelHeaderText, Mode=OneWay}"
                     TextWrapping="Wrap" />
-
-                <!--  Optional: More options button  -->
-                <Button
-                    Grid.Column="2"
-                    Width="32"
-                    Height="32"
-                    Style="{StaticResource FluentIconButton}"
-                    ToolTipService.ToolTip="More options"
-                    Visibility="Collapsed">
-                    <FontIcon
-                        FontFamily="Segoe MDL2 Assets"
-                        FontSize="16"
-                        Glyph="&#xE712;" />
-                </Button>
             </Grid>
 
             <!--  Grid Images List  -->

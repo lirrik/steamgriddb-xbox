@@ -101,6 +101,9 @@ namespace SteamGridDB.Xbox
         private async void PrimaryWidget_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadGameEntriesAsync();
+            
+            // Set default focus to Fix my library button for controller navigation
+            FixLibraryButton.Focus(FocusState.Programmatic);
         }
 
         private async Task<StorageFolder> GetThirdPartyLibrariesFolderAsync()
