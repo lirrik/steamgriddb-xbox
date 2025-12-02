@@ -15,7 +15,7 @@ The widget requires user to enable File system access under ***Settings > Privac
 - The widget is specifically looking for square grids (512x512 or 1024x1024) or icons (which are always square), because the Xbox App is designed to show square artwork. That is why results from SteamGridDB are filtered and do not show all available images.
 - Freshly uploaded SteamGridDB artwork might not show up in the widget immediately due to SteamGridDB API caching.
 - Currently, there is no source to resolve names for games from the EA App.
-- Sometimes the Xbox App leaves behind manifest entries for removed games, causing them to appear in the widget. Conversely, some installed games can be missing from the manifest and not show up in the widget. To solve this, delete the ThirdParty folder or the manifest files — the Xbox App will recreate them correctly.
+- Sometimes the Xbox App leaves behind manifest entries for removed games, causing them to appear in the widget. Conversely, some installed games can be missing from the manifest and not show up in the widget. To solve this, delete the ThirdPartyLibraries folder or the manifest files — the Xbox App will recreate them correctly.
 - Another current Xbox App issue: Ubisoft Connect games are not always detected. If the Xbox App library is not showing them, the widget will not be able to show them either.
 - Only first 50 square grids and first 50 icons are loaded from SteamGridDB (paging is not implemented yet).
 - Controller support is not implemented yet - please use touch or mouse for now.
