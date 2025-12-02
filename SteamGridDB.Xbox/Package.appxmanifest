@@ -48,7 +48,7 @@
                              Id="PrimaryWidget"
                              DisplayName="SteamGridDB"
                              Description="SteamGridDB for Xbox Full Screen Experience (XFSE)"
-                             PublicFolder="GameBar">
+                             PublicFolder="Assets">
             <uap3:Properties>
               <GameBarWidget Type="Standard">
                 <HomeMenuVisible>true</HomeMenuVisible>
