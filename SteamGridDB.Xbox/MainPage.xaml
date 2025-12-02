@@ -29,7 +29,7 @@
             <TextBlock
                         HorizontalAlignment="Center"
                         Foreground="#99FFFFFF"
-                        Text="To use this app, please find the SteamGridDB widget in the Xbox Game Bar by pressing Win + G or the nexus button on your Xbox controller"
+                        Text="To use this app, please find the SteamGridDB widget in the Xbox Game Bar by pressing Win + G or the Xbox button on your controller"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
         </StackPanel>
