@@ -605,15 +605,23 @@
                     Padding="16,8,16,0"
                     Spacing="0">
                     <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
                         <TextBox
                             x:Name="GameSearchBox"
+                            Grid.Column="0"
                             Height="40"
-                            Padding="12,8,40,8"
+                            Padding="12,8"
                             VerticalContentAlignment="Center"
                             BorderThickness="1"
                             CornerRadius="4"
                             FontSize="13"
-                            KeyDown="GameSearchBox_KeyDown">
+                            KeyDown="GameSearchBox_KeyDown"
+                            GotFocus="GameSearchBox_GotFocus"
+                            LostFocus="GameSearchBox_LostFocus">
                             <TextBox.Resources>
                                 <SolidColorBrush x:Key="TextControlBackground" Color="#1E1E1E" />
                                 <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#1E1E1E" />
@@ -621,26 +629,28 @@
                                 <SolidColorBrush x:Key="TextControlForegroundFocused" Color="White" />
                                 <SolidColorBrush x:Key="TextControlBorderBrush" Color="#404040" />
                                 <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#666666" />
+                                <SolidColorBrush x:Key="TextControlButtonForeground" Color="White" />
+                                <SolidColorBrush x:Key="TextControlButtonForegroundPointerOver" Color="White" />
+                                <SolidColorBrush x:Key="TextControlButtonForegroundPressed" Color="#CCCCCC" />
+                                <SolidColorBrush x:Key="TextControlButtonBackground" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlButtonBackgroundPointerOver" Color="#2D2D2D" />
+                                <SolidColorBrush x:Key="TextControlButtonBackgroundPressed" Color="#404040" />
                             </TextBox.Resources>
                         </TextBox>
 
-                        <!--  Search Icon Button  -->
-                        <Button
-                            Width="32"
-                            Height="32"
-                            Margin="0,0,4,0"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Background="Transparent"
-                            BorderThickness="0"
+                        <!--  Search Button  -->
+                        <Button 
+                            x:Name="SearchGamesButton"
+                            Grid.Column="1"
+                            Width="40"
+                            Height="40"
+                            Margin="8,0,0,0"
                             Click="SearchGames_Click"
-                            CornerRadius="4"
-                            IsTabStop="False"
+                            Style="{StaticResource FluentIconButton}"
                             ToolTipService.ToolTip="Search">
                             <FontIcon
                                 FontFamily="Segoe MDL2 Assets"
                                 FontSize="16"
-                                Foreground="#FFFFFF"
                                 Glyph="&#xE721;" />
                         </Button>
                     </Grid>

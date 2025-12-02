@@ -10,6 +10,7 @@ using Windows.Data.Json;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI.Core;
+using Windows.UI.ViewManagement.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media.Animation;
@@ -41,6 +42,7 @@ namespace SteamGridDB.Xbox
         private static readonly HttpClient sharedHttpClient = new HttpClient();
 
         private StorageFolder currentGameFolder;
+        private Button lastFocusedButton;
 
         private GameEntry currentSelectedGame;
         public GameEntry CurrentSelectedGame
@@ -101,7 +103,7 @@ namespace SteamGridDB.Xbox
         private async void PrimaryWidget_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadGameEntriesAsync();
-            
+
             // Set default focus to Fix my library button for controller navigation
             FixLibraryButton.Focus(FocusState.Programmatic);
         }
@@ -770,6 +772,7 @@ namespace SteamGridDB.Xbox
 
             if (button?.Tag is GameEntry gameEntry)
             {
+                lastFocusedButton = button;
                 CurrentSelectedGame = gameEntry;
 
                 // Find the folder for this game
@@ -913,7 +916,7 @@ namespace SteamGridDB.Xbox
                 {
                     // Force layout update so containers are realized
                     GridImagesView.UpdateLayout();
-                    
+
                     // Get the first item container and focus it
                     var firstContainer = GridImagesView.ContainerFromIndex(0) as GridViewItem;
 
@@ -1023,6 +1026,13 @@ namespace SteamGridDB.Xbox
             GridImagesView.Items.Clear();
             CurrentSelectedGame = null;
             currentGameFolder = null;
+
+            // Restore focus to the button that opened this panel
+            if (lastFocusedButton != null)
+            {
+                lastFocusedButton.Focus(FocusState.Programmatic);
+                lastFocusedButton = null;
+            }
         }
 
         /// <summary>
@@ -1042,7 +1052,9 @@ namespace SteamGridDB.Xbox
 
             if (button?.Tag is GameEntry gameEntry)
             {
+                lastFocusedButton = button;
                 CurrentSelectedGame = gameEntry;
+
                 await ShowSearchPanelAsync();
             }
         }
@@ -1124,8 +1136,8 @@ namespace SteamGridDB.Xbox
             {
                 // DO NOT update current game's name - keep it as "Unknown" so user can search again
 
-                // Hide search panel and show grid selection panel
-                await HideSearchPanelAsync();
+                // Hide search panel but don't clear lastFocusedButton yet
+                await HideSearchPanelAsync(false);
                 await LoadGridSelectionByGameIdAsync(selectedGame);
             }
         }
@@ -1208,7 +1220,7 @@ namespace SteamGridDB.Xbox
             }
             else
             {
-                GameSearchBox.Text = "";
+                GameSearchBox.Text = string.Empty;
             }
 
             SearchResultsListView.Items.Clear();
@@ -1231,20 +1243,24 @@ namespace SteamGridDB.Xbox
             storyboard.Begin();
             await Task.Delay(250);
 
-            // Focus search box
-            GameSearchBox.Focus(FocusState.Programmatic);
-
-            // Select all text if prefilled
+            // Focus search box if empty, otherwise focus search button
             if (!string.IsNullOrEmpty(GameSearchBox.Text))
             {
-                GameSearchBox.SelectAll();
+                SearchGamesButton.Focus(FocusState.Programmatic);
+            }
+            else
+            {
+                GameSearchBox.Focus(FocusState.Programmatic);
+
+                // Position cursor at the end of the text
+                GameSearchBox.Select(GameSearchBox.Text.Length, 0);
             }
         }
 
         /// <summary>
         /// Hide the search panel with animation
         /// </summary>
-        private async Task HideSearchPanelAsync()
+        private async Task HideSearchPanelAsync(bool restoreFocus = true)
         {
             // Slide down animation
             var animation = new DoubleAnimation
@@ -1265,6 +1281,13 @@ namespace SteamGridDB.Xbox
 
             GameSearchPanel.Visibility = Visibility.Collapsed;
             SearchResultsListView.Items.Clear();
+
+            // Restore focus to the button that opened this panel
+            if (restoreFocus && lastFocusedButton != null)
+            {
+                lastFocusedButton.Focus(FocusState.Programmatic);
+                lastFocusedButton = null;
+            }
         }
 
         /// <summary>
@@ -1551,6 +1574,47 @@ namespace SteamGridDB.Xbox
             }
 
             return null;
+        }
+
+        private async void GameSearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            // Position cursor at the end of the text
+            if (sender is TextBox textBox)
+            {
+                textBox.SelectionStart = textBox.Text.Length;
+                textBox.SelectionLength = 0;
+
+                // Only show virtual keyboard for gamepad/controller input
+                // FocusState.Keyboard indicates focus via keyboard/gamepad navigation
+                // FocusState.Pointer indicates mouse/touch click - don't show keyboard for this
+                if (textBox.FocusState == FocusState.Keyboard)
+                {
+                    // Delay showing the keyboard to prevent Game Bar from hiding on first focus
+                    await Task.Delay(100);
+
+                    try
+                    {
+                        CoreInputView.GetForCurrentView().TryShow((CoreInputViewKind)7); // 7 = keyboard gamepad
+                    }
+                    catch
+                    {
+                        // Keyboard input view not available or failed to show
+                    }
+                }
+            }
+        }
+
+        private void GameSearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Hide virtual keyboard when focus is lost
+            try
+            {
+                CoreInputView.GetForCurrentView().TryHide();
+            }
+            catch
+            {
+                // Keyboard input view not available or failed to hide
+            }
         }
     }
 }
