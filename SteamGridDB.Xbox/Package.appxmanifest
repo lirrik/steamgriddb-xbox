@@ -11,7 +11,7 @@
   <Identity
     Name="KDerevianko.SteamGridDBforXbox"
     Publisher="CN=3A3A4DF3-61EC-44B3-8236-B38DEB2BFA98"
-    Version="1.2.1.0" />
+    Version="1.3.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="556a41b4-fae4-4e6f-925e-cd8945b576d5" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
