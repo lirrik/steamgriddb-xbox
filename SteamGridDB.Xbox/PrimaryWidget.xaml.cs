@@ -24,7 +24,7 @@ using SteamGridDB.Xbox.Services.SteamGridDB.Models;
 namespace SteamGridDB.Xbox
 {
     /// <summary>
-    /// Primary widget page that loads and displays Xbox App third-party games.
+    /// Primary widget page that loads and displays Xbox app third-party games.
     /// </summary>
     public sealed partial class PrimaryWidget : Page, INotifyPropertyChanged
     {
@@ -34,6 +34,8 @@ namespace SteamGridDB.Xbox
         }
 
         private readonly string steamGridDbApiKey = Environment.GetEnvironmentVariable("STEAMGRIDDB_API_KEY");
+        private readonly string thirdPartyLibrariesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
+            @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
         private const string unknownName = "Unknown";
 
         private static Dictionary<string, string> ubisoftGameLookupCache = null;
@@ -110,11 +112,6 @@ namespace SteamGridDB.Xbox
 
         private async Task<StorageFolder> GetThirdPartyLibrariesFolderAsync()
         {
-            // Direct access to the standard location
-            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string thirdPartyLibrariesPath = Path.Combine(userProfile,
-                 @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
-
             try
             {
                 // Try to get folder directly with broadFileSystemAccess permission
@@ -158,7 +155,7 @@ namespace SteamGridDB.Xbox
                 {
                     await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                     {
-                        StatusText.Text = "ThirdPartyLibraries folder was not found. Make sure games are added to the Xbox App.";
+                        StatusText.Text = "ThirdPartyLibraries folder was not found. Make sure games are added to the Xbox app.";
                         GameEntriesListView.Visibility = Visibility.Collapsed;
                     });
 
@@ -203,7 +200,7 @@ namespace SteamGridDB.Xbox
 
                         if (directoryName == "bnet")
                         {
-                            // Skip Battle.net folder as it is not currently supported - Xbox App does not store images here
+                            // Skip Battle.net folder as it is not currently supported - Xbox app does not store images here
                             continue;
                         }
 
@@ -472,7 +469,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Handle fix library button click to automatically download artwork for all eligible games
+        /// Handles fix library button click to automatically download artwork for all eligible games.
         /// </summary>
         private async void FixLibraryButton_Click(object sender, RoutedEventArgs e)
         {
@@ -502,6 +499,33 @@ namespace SteamGridDB.Xbox
             if (result == ContentDialogResult.Primary)
             {
                 await FixLibraryAsync();
+            }
+        }
+
+        private async void RestoreChangesButton_Click(object sender, RoutedEventArgs e)
+        {
+            ContentDialog confirmDialog = new ContentDialog
+            {
+                Title = "Restore my changes",
+                Content = "This will restore all previously customised artwork (useful if your changes were reset by the Xbox app).\n\n" +
+                          "Do you want to continue?",
+                PrimaryButtonText = "Restore my changes",
+                CloseButtonText = "Cancel",
+                Style = Resources["DarkContentDialogStyle"] as Style,
+                PrimaryButtonStyle = Resources["ContentDialogButtonStyle"] as Style,
+                CloseButtonStyle = Resources["ContentDialogButtonStyle"] as Style
+            };
+
+            if (Windows.Foundation.Metadata.ApiInformation.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 8))
+            {
+                confirmDialog.XamlRoot = Content.XamlRoot;
+            }
+
+            ContentDialogResult result = await confirmDialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                await RestoreAllChangesAsync();
             }
         }
 
@@ -623,7 +647,111 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Downloads and replaces an image for a specific game
+        /// Restores artwork customisation by using saved .new files to replace current images - for cases when customisation was overwritten externally, for example, by the Xbox app.
+        /// </summary>
+        private async Task RestoreAllChangesAsync()
+        {
+            try
+            {
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = "Restoring customisations...";
+                });
+
+                int successCount = 0;
+                int errorCount = 0;
+
+                foreach (var game in GameEntries)
+                {
+                    try
+                    {
+                        string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
+
+                        StorageFolder gameFolder = null;
+
+                        try
+                        {
+                            gameFolder = await StorageFolder.GetFolderFromPathAsync(gameFolderPath);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+
+                        string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.png";
+                        string newFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.new";
+
+                        StorageFile newFile = null;
+
+                        try
+                        {
+                            newFile = await gameFolder.GetFileAsync(newFileName);
+                        }
+                        catch (FileNotFoundException)
+                        {
+                            continue;
+                        }
+
+                        if (newFile != null)
+                        {
+                            var imageBytes = await FileIO.ReadBufferAsync(newFile);
+
+                            var imageFile = await gameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
+                            await FileIO.WriteBufferAsync(imageFile, imageBytes);
+
+                            var stream = await imageFile.OpenReadAsync();
+
+                            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                try
+                                {
+                                    var restoredImage = new BitmapImage();
+                                    var _ = restoredImage.SetSourceAsync(stream);
+
+                                    game.Image = restoredImage;
+                                    game.ImageFileName = imageFileName;
+                                }
+                                catch
+                                {
+                                    stream?.Dispose();
+                                }
+                            });
+
+                            successCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        System.Diagnostics.Debug.WriteLine($"Error restoring changes for {game.Name}: {ex.Message}");
+                    }
+                }
+
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    if (successCount == 0 && errorCount == 0)
+                    {
+                        StatusText.Text = "No changes found to restore";
+                    }
+                    else
+                    {
+                        StatusText.Text = $"Restore complete: {successCount} restored, {errorCount} error{(errorCount == 1 ? string.Empty : "s")}";
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    StatusText.Text = $"Error restoring changes: {ex.Message}";
+                });
+
+                System.Diagnostics.Debug.WriteLine($"Error in RestoreAllChangesAsync: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Downloads and replaces an image for a specific game.
         /// </summary>
         /// <param name="game">The game to update</param>
         /// <param name="imageUrl">The URL of the image to download</param>
@@ -633,9 +761,6 @@ namespace SteamGridDB.Xbox
             try
             {
                 // Find the game folder
-                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string thirdPartyLibrariesPath = Path.Combine(userProfile,
-                    @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
                 string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
 
                 StorageFolder gameFolder = null;
@@ -687,6 +812,7 @@ namespace SteamGridDB.Xbox
                     // Generate the filenames
                     string imageFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.png";
                     string backupFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.bak";
+                    string newFileName = $"{GamePlatformHelper.ToXboxDirectory(game.Platform)}_{game.XboxPlatformId.Replace(":", "_")}.new";
 
                     // Create backup of ORIGINAL image ONLY if backup doesn't already exist
                     bool backupExists = false;
@@ -719,6 +845,10 @@ namespace SteamGridDB.Xbox
                     var imageFile = await gameFolder.CreateFileAsync(imageFileName, CreationCollisionOption.ReplaceExisting);
                     await FileIO.WriteBufferAsync(imageFile, imageBytes);
 
+                    // Save a copy of the new image as .new file
+                    var newFile = await gameFolder.CreateFileAsync(newFileName, CreationCollisionOption.ReplaceExisting);
+                    await FileIO.WriteBufferAsync(newFile, imageBytes);
+
                     // Reload the image in the UI - open stream before dispatching to UI thread
                     var stream = await imageFile.OpenReadAsync();
 
@@ -727,6 +857,7 @@ namespace SteamGridDB.Xbox
                         try
                         {
                             var newImage = new BitmapImage();
+
                             // Fire-and-forget: async call will complete in background
                             var _ = newImage.SetSourceAsync(stream);
 
@@ -844,9 +975,6 @@ namespace SteamGridDB.Xbox
         /// <returns>True if successful, false otherwise</returns>
         private async Task<bool> TrySetCurrentGameFolderAsync(string directory)
         {
-            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string thirdPartyLibrariesPath = Path.Combine(userProfile,
-                @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
             string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, directory);
 
             try
@@ -914,22 +1042,19 @@ namespace SteamGridDB.Xbox
             {
                 if (GridImagesView.Items.Count > 0)
                 {
-                    // Force layout update so containers are realized
+                    // Force layout update so containers are realised
                     GridImagesView.UpdateLayout();
 
                     // Get the first item container and focus it
                     var firstContainer = GridImagesView.ContainerFromIndex(0) as GridViewItem;
 
-                    if (firstContainer != null)
-                    {
-                        firstContainer.Focus(FocusState.Programmatic);
-                    }
+                    firstContainer?.Focus(FocusState.Programmatic);
                 }
             });
         }
 
         /// <summary>
-        /// Handle grid image selection
+        /// Handles grid image selection. Downloads and replaces the game's image.
         /// </summary>
         private async void GridImage_Click(object sender, ItemClickEventArgs e)
         {
@@ -940,7 +1065,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Download selected grid and replace the game's image file
+        /// Downloads selected grid and replaces the game's image file.
         /// </summary>
         private async Task DownloadAndReplaceImageAsync(GridImageItem gridItem)
         {
@@ -1001,7 +1126,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Hide the grid selection panel with animation
+        /// Hide the grid selection panel with animation.
         /// </summary>
         private async Task HideGridPanelAsync()
         {
@@ -1028,15 +1153,12 @@ namespace SteamGridDB.Xbox
             currentGameFolder = null;
 
             // Restore focus to the button that opened this panel
-            if (lastFocusedButton != null)
-            {
-                lastFocusedButton.Focus(FocusState.Programmatic);
-                lastFocusedButton = null;
-            }
+            lastFocusedButton?.Focus(FocusState.Programmatic);
+            lastFocusedButton = null;
         }
 
         /// <summary>
-        /// Handle close button click
+        /// Handles close button click.
         /// </summary>
         private async void CloseGridPanel_Click(object sender, RoutedEventArgs e)
         {
@@ -1044,7 +1166,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Handle search button click to show game search panel
+        /// Handles search button click to show game search panel.
         /// </summary>
         private async void SearchGameImage_Click(object sender, RoutedEventArgs e)
         {
@@ -1060,7 +1182,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Handle search box key down (Enter to search)
+        /// Handles search box key down (Enter to search).
         /// </summary>
         private async void GameSearchBox_KeyDown(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
@@ -1071,7 +1193,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Handle search button click
+        /// Handles search button click.
         /// </summary>
         private async void SearchGames_Click(object sender, RoutedEventArgs e)
         {
@@ -1079,7 +1201,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Perform game search using SteamGridDB API
+        /// Performs game search using SteamGridDB API.
         /// </summary>
         private async Task PerformGameSearchAsync()
         {
@@ -1105,6 +1227,7 @@ namespace SteamGridDB.Xbox
                     {
                         SearchPanelStatus.Text = "No games found";
                         SearchLoadingRing.IsActive = false;
+
                         return;
                     }
 
@@ -1134,7 +1257,7 @@ namespace SteamGridDB.Xbox
         {
             if (e.ClickedItem is SteamGridDbGame selectedGame)
             {
-                // DO NOT update current game's name - keep it as "Unknown" so user can search again
+                // DO NOT update current game's name - keep it as "Unknown" so the user can search again
 
                 // Hide search panel but don't clear lastFocusedButton yet
                 await HideSearchPanelAsync(false);
@@ -1190,7 +1313,7 @@ namespace SteamGridDB.Xbox
         }
 
         /// <summary>
-        /// Show the search panel with animation
+        /// Shows the search panel with animation.
         /// </summary>
         private async Task ShowSearchPanelAsync()
         {
@@ -1326,9 +1449,6 @@ namespace SteamGridDB.Xbox
                 });
 
                 // Find the game folder
-                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string thirdPartyLibrariesPath = Path.Combine(userProfile,
-                  @"AppData\Local\Packages\Microsoft.GamingApp_8wekyb3d8bbwe\LocalState\ThirdPartyLibraries");
                 string gameFolderPath = Path.Combine(thirdPartyLibrariesPath, game.Directory);
 
                 StorageFolder gameFolder = null;
@@ -1576,6 +1696,15 @@ namespace SteamGridDB.Xbox
             return null;
         }
 
+        /// <summary>
+        /// Handles the GotFocus event for the game search box, positioning the cursor at the end of the text and
+        /// displaying the virtual keyboard when appropriate.
+        /// </summary>
+        /// <remarks>The virtual keyboard is shown only when focus is received via keyboard or gamepad
+        /// navigation, not when using mouse or touch input. This behavior ensures that the keyboard does not appear
+        /// unintentionally when the user clicks or taps the search box.</remarks>
+        /// <param name="sender">The source of the event, expected to be a TextBox representing the game search box.</param>
+        /// <param name="e">The event data associated with the GotFocus event.</param>
         private async void GameSearchBox_GotFocus(object sender, RoutedEventArgs e)
         {
             // Position cursor at the end of the text
@@ -1604,6 +1733,12 @@ namespace SteamGridDB.Xbox
             }
         }
 
+        /// <summary>
+        /// Handles the LostFocus event for the game search box to hide the virtual keyboard when the control loses
+        /// focus.
+        /// </summary>
+        /// <param name="sender">The source of the event, typically the game search box control.</param>
+        /// <param name="e">The event data associated with the LostFocus event.</param>
         private void GameSearchBox_LostFocus(object sender, RoutedEventArgs e)
         {
             // Hide virtual keyboard when focus is lost

@@ -104,6 +104,18 @@
                             Glyph="&#xE74C;" />
                     </Button>
                     <Button
+                        x:Name="RestoreChangesButton"
+                        Width="40"
+                        Height="40"
+                        Click="RestoreChangesButton_Click"
+                        Style="{StaticResource FluentIconButton}"
+                        ToolTipService.ToolTip="Restore my changes">
+                        <FontIcon
+                            FontFamily="Segoe MDL2 Assets"
+                            FontSize="16"
+                            Glyph="&#xE7A6;" />
+                    </Button>
+                    <Button
                         Width="40"
                         Height="40"
                         Click="RefreshButton_Click"
@@ -141,7 +153,7 @@
                     <TextBlock
                         HorizontalAlignment="Center"
                         Foreground="#99FFFFFF"
-                        Text="Please grant file system access to SteamGridDB for Xbox to view your Xbox App library (Settings &gt; Privacy &amp; security &gt; File system &gt; Let apps access your file system)"
+                        Text="Please grant file system access to SteamGridDB for Xbox to view your Xbox app library (Settings &gt; Privacy &amp; security &gt; File system &gt; Let apps access your file system)"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                 </StackPanel>
