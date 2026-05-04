@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
+using Windows.Storage;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Media.Imaging;
 
@@ -12,13 +13,18 @@ namespace SteamGridDB.Xbox.Models
         private string name;
         private string xboxPlatformId;
         private string externalPlatformId;
-        private string directory;
         private GamePlatform platform;
         private DateTime addedDate;
         private string imageFileName;
+        private string imageFilePath;
         private BitmapImage image;
         private bool hasBackup;
         private bool hasSteamGridDBMatch;
+
+        public StorageFolder ImageFolder
+        {
+            get; set;
+        }
 
         public string Name
         {
@@ -54,19 +60,6 @@ namespace SteamGridDB.Xbox.Models
                 if (externalPlatformId != value)
                 {
                     externalPlatformId = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public string Directory
-        {
-            get => directory;
-            set
-            {
-                if (directory != value)
-                {
-                    directory = value;
                     OnPropertyChanged();
                 }
             }
@@ -109,6 +102,19 @@ namespace SteamGridDB.Xbox.Models
                 if (imageFileName != value)
                 {
                     imageFileName = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string ImageFilePath
+        {
+            get => imageFilePath;
+            set
+            {
+                if (imageFilePath != value)
+                {
+                    imageFilePath = value;
                     OnPropertyChanged();
                 }
             }

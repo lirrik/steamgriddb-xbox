@@ -8,6 +8,7 @@ namespace SteamGridDB.Xbox.Models
         Ubisoft,
         BattleNet,
         EA,
+        Custom,
         Unknown
     }
 
@@ -29,29 +30,10 @@ namespace SteamGridDB.Xbox.Models
                     return GamePlatform.BattleNet;
                 case "ea":
                     return GamePlatform.EA;
+                case "customlibrarymanagement":
+                    return GamePlatform.Custom;
                 default:
                     return GamePlatform.Unknown;
-            }
-        }
-
-        public static string ToXboxDirectory(GamePlatform platform)
-        {
-            switch (platform)
-            {
-                case GamePlatform.Steam:
-                    return "steam";
-                case GamePlatform.GOG:
-                    return "gog";
-                case GamePlatform.Epic:
-                    return "epic";
-                case GamePlatform.Ubisoft:
-                    return "ubi";
-                case GamePlatform.BattleNet:
-                    return "bnet";
-                case GamePlatform.EA:
-                    return "ea";
-                default:
-                    return null;
             }
         }
 

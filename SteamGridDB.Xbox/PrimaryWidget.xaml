@@ -32,7 +32,7 @@
             <Setter Property="TitleTemplate">
                 <Setter.Value>
                     <DataTemplate>
-                        <TextBlock Text="{Binding}" FontWeight="Bold" FontSize="24"/>
+                        <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="24"/>
                     </DataTemplate>
                 </Setter.Value>
             </Setter>
